@@ -134,3 +134,12 @@ bun のワークスペース。依存はルートで `bun install` する。
 2. `bun run lint`
 3. `bun run build:workbench`
 4. `bun run build:site`（コンポーネントページはストーリーから作るので、ストーリーを変えたら通す）
+
+## 公開
+
+npm への公開は GitHub Actions（`.github/workflows/publish.yml`）が行う。npm の trusted publishing で認証するので、トークンは置かない。
+
+1. `packages/takibi/package.json` の `version` を上げてコミットする
+2. 同じ版のタグを付けて push する（`git tag v0.2.0 && git push origin main v0.2.0`）
+
+ワークフローは、タグと `version` がそろっているかを確かめ、検証の 4 つを通してから公開する。サイトは `apps/site` で `bunx wrangler deploy` を実行してデプロイする。

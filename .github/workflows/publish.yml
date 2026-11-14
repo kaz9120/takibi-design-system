@@ -1,0 +1,50 @@
+# v0.2.0 のようなタグを push すると、packages/takibi を npm に公開する。
+# 認証は npm の trusted publishing（OIDC）で行うので、npm のトークンを secrets に置かない。
+name: npm に公開
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # trusted publishing と provenance に使う
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      # trusted publishing には npm 11.5.1 以上が要る
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@11
+
+      - name: タグとパッケージの版がそろっているか確かめる
+        run: |
+          version=$(node -p "require('./packages/takibi/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "タグ $GITHUB_REF_NAME と packages/takibi/package.json の版 $version が違う"
+            exit 1
+          fi
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run build:workbench
+      - run: bun run build:site
+
+      - name: 公開する
+        working-directory: packages/takibi
+        run: npm publish
