@@ -1,0 +1,562 @@
+/* ============================================================
+   動きの語彙
+   ------------------------------------------------------------
+   Base UI が開閉の段階を data 属性で出すので、CSS だけで動きを当てる。
+   - [data-starting-style]: 現れる直前の姿
+   - [data-ending-style]:   消える直前の姿
+   コンポーネントは下のユーティリティを className に持つ。アプリ側で
+   独自の要素に使ってもよい。
+   原則:
+   - 開く動きはばね（--ease-spring-*）で、閉じる動きは速い減速（--ease-out-expo）で
+   - 動きは原因の位置（押した点、トリガー）から始める
+   - 途中で逆の操作をしたら、今の位置から戻す（CSS の transition は自動でそうなる）
+   ============================================================ */
+
+/* グロー: hover で、要素の周りにブランドカラーの淡い光（shadow-glow-soft）が出る */
+@utility motion-glow {
+	transition-property: color, background-color, border-color, box-shadow;
+	transition-duration: var(--duration-base);
+	transition-timing-function: var(--ease-ember);
+	&:hover:not(:disabled, [data-disabled]) {
+		box-shadow: var(--shadow-glow-soft);
+	}
+}
+
+/*
+ * 押下: 押した瞬間に速く沈み、離すとばねで弾んで戻る。
+ * Button は Motion で同じ動きをするので、これは独自の押せる要素に使う。
+ */
+@utility motion-press {
+	transition:
+		color var(--duration-fast) var(--ease-standard),
+		background-color var(--duration-fast) var(--ease-standard),
+		border-color var(--duration-fast) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-ember),
+		scale var(--duration-spring-press) var(--ease-spring-press);
+	&:active:not(:disabled, [data-disabled]) {
+		scale: var(--press-scale);
+		transition:
+			color var(--duration-fast) var(--ease-standard),
+			background-color var(--duration-fast) var(--ease-standard),
+			border-color var(--duration-fast) var(--ease-standard),
+			box-shadow var(--duration-base) var(--ease-ember),
+			scale 150ms var(--ease-out-expo);
+	}
+}
+
+/* 大きな面の押下: カード、一覧の行。沈みは浅く（0.98） */
+@utility motion-press-surface {
+	--press-scale: var(--press-scale-surface);
+	@apply motion-press;
+}
+
+/* 小さな押下: チェックボックス、ラジオ、アイコンだけの要素。大きく沈めて、押した手応えを出す */
+@utility motion-press-icon {
+	transition:
+		color var(--duration-fast) var(--ease-standard),
+		background-color var(--duration-fast) var(--ease-standard),
+		border-color var(--duration-fast) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-ember),
+		scale var(--duration-spring-press) var(--ease-spring-press);
+	&:active:not(:disabled, [data-disabled], [data-readonly]) {
+		scale: var(--press-scale-icon);
+		transition:
+			color var(--duration-fast) var(--ease-standard),
+			background-color var(--duration-fast) var(--ease-standard),
+			border-color var(--duration-fast) var(--ease-standard),
+			box-shadow var(--duration-base) var(--ease-ember),
+			scale 150ms var(--ease-out-expo);
+	}
+}
+
+/*
+ * 字形の押下: 入力欄の枠の中にある、アイコンだけのボタン（増減、開閉、消す）。
+ * 面ごと縮めると枠の線とずれて見えるので、中の svg だけを大きく沈める。
+ */
+@utility motion-press-glyph {
+	& svg {
+		transition: scale var(--duration-spring-press) var(--ease-spring-press);
+	}
+	&:active:not(:disabled, [data-disabled]) svg {
+		scale: var(--press-scale-glyph);
+		transition-duration: 150ms;
+		transition-timing-function: var(--ease-out-expo);
+	}
+}
+
+/*
+ * 入れ替わり: 値があるときだけ出る小さなボタン（消すボタンなど）。ぼけた小ささからばねで現れ、速く消える。
+ * Base UI の data-starting-style / data-ending-style を見る。Motion で同じことをするときは src/lib/motion.ts の swap を使う。
+ */
+@utility motion-swap {
+	transition-property: opacity, scale, filter, color, background-color;
+	transition-duration: var(--duration-spring-snappy);
+	transition-timing-function: var(--ease-spring-snappy);
+	&[data-starting-style],
+	&[data-ending-style] {
+		opacity: 0;
+		scale: 0.5;
+		filter: blur(4px);
+	}
+	&[data-ending-style] {
+		transition-duration: var(--duration-fast);
+		transition-timing-function: var(--ease-out-expo);
+	}
+}
+
+/*
+ * 導火線の先端: 祖先が data-advancing を持つ間（値が伸びている間）だけ先端の光を速く出し、外れると 900ms かけて消す。
+ * 光る先端の要素に付ける。
+ */
+@utility motion-fuse {
+	opacity: 0;
+	transition: opacity 900ms var(--ease-standard);
+	:where([data-advancing]) & {
+		opacity: 1;
+		transition-duration: var(--duration-fast);
+	}
+}
+
+/*
+ * 線を描く: 入ると線が描かれ、外すと逆にたどって消える。SVG の path に pathLength="1" を付けて使う。
+ * 親が data-checked を持つと描かれる。
+ */
+@utility motion-draw {
+	stroke-dasharray: 1;
+	stroke-dashoffset: 1;
+	transition: stroke-dashoffset 140ms var(--ease-out-expo);
+	:where([data-checked], [data-indeterminate]) & {
+		stroke-dashoffset: 0;
+		transition: stroke-dashoffset 220ms var(--ease-out-expo) 40ms;
+	}
+}
+
+/* 浮上: ツールチップ、ポップオーバー、メニューがトリガーからばねで膨らむ */
+@utility motion-rise {
+	transform-origin: var(--transform-origin);
+	transition:
+		opacity var(--duration-fast) var(--ease-standard),
+		scale var(--duration-spring-soft) var(--ease-spring-soft),
+		translate var(--duration-spring-soft) var(--ease-spring-soft);
+	&[data-starting-style],
+	&[data-ending-style] {
+		opacity: 0;
+		scale: 0.94;
+		translate: 0 var(--rise-offset, 4px);
+	}
+	&[data-ending-style] {
+		transition:
+			opacity 150ms var(--ease-out-expo),
+			scale 150ms var(--ease-out-expo),
+			translate 150ms var(--ease-out-expo);
+	}
+	&[data-side="top"] {
+		--rise-offset: -4px;
+	}
+	/* 0ms にするのは、ツールチップやメニューバーの間を渡り歩くときだけ。Esc や選択で閉じるときは動かす */
+	&[data-instant="delay"],
+	&[data-instant="group"],
+	&[data-instant="trigger-change"] {
+		transition-duration: 0ms;
+	}
+}
+
+/* ダイアログ本体: ぼけた状態から 12px 上がりながらばねで開き、同じ形のまま速く閉じる */
+@utility motion-dialog {
+	/* 中央寄せに translate を使うコンポーネントがあるので、動きは transform で付ける */
+	transition:
+		opacity var(--duration-base) var(--ease-standard),
+		transform var(--duration-spring-soft) var(--ease-spring-soft),
+		filter var(--duration-base) var(--ease-standard);
+	&[data-starting-style],
+	&[data-ending-style] {
+		opacity: 0;
+		transform: translateY(12px) scale(0.96);
+		filter: blur(4px);
+	}
+	&[data-ending-style] {
+		transform: translateY(6px) scale(0.96);
+		transition:
+			opacity 180ms var(--ease-out-expo),
+			transform 180ms var(--ease-out-expo),
+			filter 180ms var(--ease-out-expo);
+	}
+}
+
+/* バックドロップ: 後ろの画面を暗くし、少しぼかす */
+@utility motion-backdrop {
+	transition: opacity var(--duration-base) var(--ease-standard);
+	&[data-starting-style],
+	&[data-ending-style] {
+		opacity: 0;
+	}
+	&[data-ending-style] {
+		transition-duration: 180ms;
+	}
+}
+
+/* 高さの開閉: アコーディオン、折りたたみの中身。中身の高さまで伸びて開く */
+@utility motion-fold {
+	height: var(--accordion-panel-height, var(--collapsible-panel-height));
+	overflow: hidden;
+	transition:
+		height var(--duration-spring-glide) var(--ease-spring-glide),
+		opacity var(--duration-base) var(--ease-standard);
+	&[data-starting-style],
+	&[data-ending-style] {
+		height: 0;
+		opacity: 0;
+	}
+	/* 閉じるときも、開くときと同じ曲線でたたむ。中身は少し早く薄れる */
+	&[data-ending-style] {
+		transition:
+			height var(--duration-spring-glide) var(--ease-spring-glide),
+			opacity var(--duration-base) var(--ease-standard);
+	}
+}
+
+/* 着地: 下からばねで現れる。新しく追加された要素 */
+@utility motion-settle {
+	transition:
+		opacity var(--duration-base) var(--ease-standard),
+		translate var(--duration-spring-soft) var(--ease-spring-soft);
+	&[data-starting-style] {
+		opacity: 0;
+		translate: 0 12px;
+	}
+	/* 煙: 消えるときは上へ薄れる */
+	&[data-ending-style] {
+		opacity: 0;
+		translate: 0 -10px;
+		filter: blur(2px);
+		transition:
+			opacity var(--duration-slow) var(--ease-out-expo),
+			translate var(--duration-slow) var(--ease-out-expo),
+			filter var(--duration-slow) var(--ease-out-expo);
+	}
+}
+
+/* 薄く出す: 入力欄の下のエラー文など、小さなものを動かさずに薄く出して消す */
+@utility motion-fade {
+	transition-property: opacity;
+	transition-duration: var(--duration-fast);
+	transition-timing-function: var(--ease-standard);
+	&[data-starting-style],
+	&[data-ending-style] {
+		opacity: 0;
+	}
+}
+
+/* タブの中身: 選んだタブの側から 8px 寄りながら現れる */
+@utility motion-scene {
+	animation: scene-in var(--duration-spring-glide) var(--ease-spring-glide);
+	&[data-activation-direction="left"] {
+		--scene-from: -8px;
+	}
+	&[data-activation-direction="right"] {
+		--scene-from: 8px;
+	}
+}
+
+@keyframes scene-in {
+	from {
+		opacity: 0;
+		translate: var(--scene-from, 0) 0;
+	}
+}
+
+/* 読み込み中の面: ブランドカラーを薄く混ぜた帯が、1.8 秒かけて左から右へ流れる */
+@utility motion-ember-pulse {
+	background-image: linear-gradient(
+		90deg,
+		var(--color-surface-overlay) 0%,
+		color-mix(in oklab, var(--color-brand) 12%, var(--color-surface-overlay)) 50%,
+		var(--color-surface-overlay) 100%
+	);
+	background-size: 200% 100%;
+	animation: var(--animate-ember-pulse);
+}
+
+/* 完了の光: 完了の瞬間に一度だけ、ブランドカラーの光が外へ広がって消える */
+@utility motion-flare {
+	animation: flare 900ms var(--ease-out-expo) both;
+}
+
+@keyframes flare {
+	0% {
+		box-shadow: 0 0 0 0 rgb(244 125 58 / 0.55);
+	}
+	35% {
+		box-shadow:
+			0 0 0 4px rgb(244 125 58 / 0.18),
+			0 0 28px 4px rgb(244 125 58 / 0.35);
+	}
+	100% {
+		box-shadow: 0 0 0 10px rgb(244 125 58 / 0);
+	}
+}
+
+/*
+ * はぜる: 完了の瞬間に、火の粉が数個だけ散る。
+ * 火の粉の要素に --spark-x と --spark-y（飛ぶ先）と --spark-delay を持たせる。
+ */
+@utility motion-spark {
+	animation: spark 620ms var(--ease-out-expo) var(--spark-delay, 0ms) both;
+}
+
+@keyframes spark {
+	0% {
+		opacity: 0;
+		translate: 0 0;
+		scale: 1;
+	}
+	15% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		translate: var(--spark-x) var(--spark-y);
+		scale: 0.3;
+	}
+}
+
+/*
+ * 着火: 光る点が横へ伸びて入力欄になり、下へ広がる。Command パレットの本体。
+ * 中身の入力欄には motion-ignite-input、一覧には motion-ignite-list を付ける。
+ */
+@utility motion-ignite {
+	--ignite-row: 52px;
+	animation: ignite 560ms both;
+	&[data-ending-style] {
+		animation: smoke 200ms var(--ease-out-expo) both;
+	}
+}
+
+@keyframes ignite {
+	0% {
+		clip-path: inset(0 calc(50% - 4px) calc(100% - 8px) calc(50% - 4px) round 4px);
+		background-color: var(--color-brand);
+		translate: 0 calc(var(--ignite-row) / 2 - 4px);
+		opacity: 0;
+		animation-timing-function: var(--ease-out-expo);
+	}
+	10% {
+		clip-path: inset(0 calc(50% - 4px) calc(100% - 8px) calc(50% - 4px) round 4px);
+		background-color: var(--color-brand);
+		translate: 0 calc(var(--ignite-row) / 2 - 4px);
+		opacity: 1;
+		animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+	}
+	45% {
+		clip-path: inset(0 0 calc(100% - var(--ignite-row)) 0 round 12px);
+		background-color: var(--color-surface-overlay);
+		translate: 0 0;
+		opacity: 1;
+		animation-timing-function: var(--ease-spring-glide);
+	}
+	100% {
+		clip-path: inset(0 0 0 0 round 12px);
+		background-color: var(--color-surface-overlay);
+		translate: 0 0;
+		opacity: 1;
+	}
+}
+
+@keyframes smoke {
+	to {
+		opacity: 0;
+		translate: 0 -8px;
+		filter: blur(4px);
+	}
+}
+
+@utility motion-ignite-input {
+	animation: fade-up 220ms var(--ease-out-expo) 200ms both;
+}
+
+@utility motion-ignite-list {
+	animation: fade-up 260ms var(--ease-out-expo) 300ms both;
+}
+
+@keyframes fade-up {
+	from {
+		opacity: 0;
+		translate: 0 4px;
+	}
+}
+
+/*
+ * 重なるトースト: 新しいものが手前に、古いものは奥へ縮んで重なる。
+ * 一覧に hover かフォーカスすると広がる。横へはじくと消える。Base UI の Toast.Root に付ける。
+ */
+@utility motion-toast {
+	--gap: 0.5rem;
+	--peek: 0.625rem;
+	--scale: calc(max(0, 1 - (var(--toast-index) * 0.06)));
+	--shrink: calc(1 - var(--scale));
+	--height: var(--toast-frontmost-height, var(--toast-height));
+	--offset-y: calc(
+		var(--toast-offset-y) *
+		-1 +
+		(var(--toast-index) * var(--gap) * -1) +
+		var(--toast-swipe-movement-y)
+	);
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	z-index: calc(1000 - var(--toast-index));
+	height: var(--height);
+	transform-origin: bottom center;
+	transform: translateX(var(--toast-swipe-movement-x))
+		translateY(
+			calc(
+				var(--toast-swipe-movement-y) -
+				(var(--toast-index) * var(--peek)) -
+				(var(--shrink) * var(--height))
+			)
+		)
+		scale(var(--scale));
+	transition:
+		transform var(--duration-spring-soft) var(--ease-spring-soft),
+		opacity var(--duration-base) var(--ease-standard),
+		height var(--duration-spring-glide) var(--ease-spring-glide);
+	&[data-expanded] {
+		transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+		height: var(--toast-height);
+	}
+	&[data-starting-style] {
+		transform: translateY(calc(100% + 1.5rem)) scale(0.96);
+	}
+	&[data-limited] {
+		opacity: 0;
+	}
+	/* 煙: 時間切れや閉じるボタンで消えるときは、上へ薄れる */
+	&[data-ending-style] {
+		opacity: 0;
+		transition:
+			transform var(--duration-slow) var(--ease-out-expo),
+			opacity var(--duration-base) var(--ease-out-expo);
+		&:not([data-limited], [data-swipe-direction]) {
+			transform: translateY(calc(var(--offset-y) - 12px)) scale(0.98);
+			filter: blur(2px);
+		}
+		&[data-swipe-direction="right"] {
+			transform: translateX(calc(var(--toast-swipe-movement-x) + 110%)) translateY(var(--offset-y));
+		}
+		&[data-swipe-direction="down"] {
+			transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
+		}
+	}
+	/* 重なりの隙間でも hover が切れないように、下に透明の帯を足す */
+	&::after {
+		content: "";
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
+		height: calc(var(--gap) + 1px);
+	}
+}
+
+/*
+ * 炎の舌: 選択インジケーターは、進む側の端が先に伸び、残った端があとから追いつく。
+ * インジケーターを left と right の 2 辺で置き、行き先の状態で「先に動く辺」と「遅れて追う辺」の速さを分ける。
+ * --tongue-lead は先に動く辺、--tongue-trail は追う辺の transition。
+ */
+@utility motion-tongue {
+	--tongue-lead: 160ms var(--ease-out-expo);
+	--tongue-trail: var(--duration-spring-glide) var(--ease-spring-glide) 20ms;
+	transition:
+		left var(--duration-spring-glide) var(--ease-spring-glide),
+		right var(--duration-spring-glide) var(--ease-spring-glide),
+		top var(--duration-spring-glide) var(--ease-spring-glide),
+		bottom var(--duration-spring-glide) var(--ease-spring-glide);
+	&[data-activation-direction="right"] {
+		transition:
+			right var(--tongue-lead),
+			left var(--tongue-trail);
+	}
+	&[data-activation-direction="left"] {
+		transition:
+			left var(--tongue-lead),
+			right var(--tongue-trail);
+	}
+	&[data-activation-direction="down"] {
+		transition:
+			bottom var(--tongue-lead),
+			top var(--tongue-trail);
+	}
+	&[data-activation-direction="up"] {
+		transition:
+			top var(--tongue-lead),
+			bottom var(--tongue-trail);
+	}
+}
+
+/*
+ * スイッチのハンドル。炎の舌と同じく、進む側の辺が先に動く。
+ * 押している間は、進む側へ 4px 伸びて「これから動く」ことを知らせる。
+ * 親のスイッチに --thumb（ハンドルの大きさ）と --inset（縁との隙間）を持たせる。
+ */
+@utility motion-switch-thumb {
+	--stretch: 0px;
+	position: absolute;
+	top: var(--inset);
+	bottom: var(--inset);
+	left: var(--inset);
+	right: calc(100% - var(--inset) - var(--thumb) - var(--stretch));
+	transition:
+		left 200ms var(--ease-out-expo),
+		right var(--duration-spring-press) var(--ease-spring-press) 40ms,
+		background-color var(--duration-base) var(--ease-standard);
+	&[data-checked] {
+		left: calc(100% - var(--inset) - var(--thumb) - var(--stretch));
+		right: var(--inset);
+		transition:
+			right 200ms var(--ease-out-expo),
+			left var(--duration-spring-press) var(--ease-spring-press) 40ms,
+			background-color var(--duration-base) var(--ease-standard);
+	}
+	:where([data-slot="switch"]:active:not([data-disabled], [data-readonly])) & {
+		--stretch: 4px;
+		&,
+		&[data-checked] {
+			transition:
+				left 160ms var(--ease-out-expo),
+				right 160ms var(--ease-out-expo),
+				background-color var(--duration-base) var(--ease-standard);
+		}
+	}
+}
+
+/* サブメニューへ向かう途中（src/lib/menu-aim.ts）は、親メニューのほかの項目を hover に反応させない */
+[data-menu-aiming] [role^="menuitem"]:not([data-popup-open]) {
+	pointer-events: none;
+}
+
+/* テーマの切り替え（src/lib/theme.ts の setTheme）。コンポーネントごとの色の transition を止め、画面全体を 1 回のクロスフェードで切り替える */
+[data-theme-switching],
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+	transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 360ms;
+	animation-timing-function: var(--ease-standard);
+}
+
+/* 動きを減らす設定では、位置と大きさの動きを消し、色と影の変化だけを残す */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0ms !important;
+		animation-iteration-count: 1 !important;
+		transition-property: color, background-color, border-color, box-shadow, opacity !important;
+		transition-duration: 0.01ms !important;
+	}
+}

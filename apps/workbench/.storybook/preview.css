@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@import "takibi-design-system/styles.css";
+
+/* カタログのページ（src/docs）で使うクラスも拾う */
+@source "../src";
+
+/* 物語（ストーリー）を置く面。テーマの背景色をそのまま見せる */
+.sb-show-main.sb-main-padded {
+	padding: 2rem;
+}
+
+/* ドキュメントページの見本の枠を、テーマの面に合わせる */
+.docs-story {
+	background-color: var(--color-surface);
+}
+
+/* コンポーネントページ全体と見本の外枠も、夜と昼のテーマの面に合わせる（Storybook のテーマは夜で固定のため） */
+.sbdocs-wrapper,
+.sbdocs.sbdocs-content {
+	background-color: var(--color-surface);
+}
+.sbdocs-preview {
+	background-color: var(--color-surface);
+	border-color: var(--color-line-subtle) !important;
+}
+.sbdocs-preview .docblock-code-toggle {
+	background-color: var(--color-surface-raised);
+	color: var(--color-fg-muted);
+}
+.docblock-argstable,
+.docblock-argstable td,
+.docblock-argstable th {
+	background-color: var(--color-surface) !important;
+	color: var(--color-fg) !important;
+	border-color: var(--color-line-subtle) !important;
+}
+#storybook-docs,
+.sb-show-main {
+	background-color: var(--color-surface);
+}
+
+/* MDX のページ（はじめに、ガイドライン）の表とリスト。Tailwind の初期化で消えたリストのマーカーを戻し、表をテーマの色にする */
+.sbdocs.sbdocs-content ol:not([class]) {
+	list-style: decimal;
+}
+.sbdocs.sbdocs-content ul:not([class]) {
+	list-style: disc;
+}
+.sbdocs.sbdocs-content table:not([class]) {
+	border-collapse: collapse;
+}
+.sbdocs.sbdocs-content table:not([class]) tr {
+	background-color: transparent !important;
+	border-top: 1px solid var(--color-line-subtle) !important;
+}
+.sbdocs.sbdocs-content table:not([class]) th,
+.sbdocs.sbdocs-content table:not([class]) td {
+	border: none !important;
+	border-bottom: 1px solid var(--color-line-subtle) !important;
+	color: var(--color-fg);
+	text-align: left;
+}
+.sbdocs.sbdocs-content table:not([class]) th {
+	color: var(--color-fg-subtle);
+	font-weight: 500;
+}

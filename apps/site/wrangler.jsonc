@@ -1,0 +1,12 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "takibi-design-system-site",
+	"compatibility_date": "2026-11-01",
+	"assets": {
+		"directory": "./build/client",
+		"html_handling": "drop-trailing-slash",
+		"not_found_handling": "404-page"
+	},
+	"routes": [{ "pattern": "design-system.y-kaz.com", "custom_domain": true }],
+	"observability": { "enabled": true }
+}

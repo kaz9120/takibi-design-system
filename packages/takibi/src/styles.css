@@ -1,0 +1,20 @@
+/* ============================================================
+   Takibi Design System — スタイルの入口
+   ------------------------------------------------------------
+   アプリの CSS では、Tailwind のあとに読み込む。
+
+     @import "tailwindcss";
+     @import "takibi-design-system/styles.css";
+
+   フォントは Google Fonts を <link> で読み込む（README を参照）。
+   ============================================================ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./motion.css";
+
+/* コンポーネントが使うクラスを、アプリの Tailwind に拾わせる */
+@source "./components";
+
+/* テーマを data-theme 属性で切り替える */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));

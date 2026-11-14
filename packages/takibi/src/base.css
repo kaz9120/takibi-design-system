@@ -1,0 +1,44 @@
+/* ============================================================
+   素の要素の見た目
+   ============================================================ */
+
+@layer base {
+	html,
+	body {
+		background-color: var(--color-surface);
+		color: var(--color-fg);
+		font-family: var(--font-sans);
+		font-size: var(--text-base);
+		line-height: var(--text-base--line-height);
+		font-feature-settings: "palt", "cv11", "ss01";
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		/* テーマが切り替わるときは、色がゆっくり変わる */
+		transition:
+			background-color var(--duration-relax) var(--ease-settle),
+			color var(--duration-relax) var(--ease-settle);
+	}
+
+	::selection {
+		background-color: var(--color-brand-soft);
+		color: var(--color-fg-strong);
+	}
+
+	/* フォーカスはキーボード操作のときだけ、ブランドカラーの輪で示す */
+	:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	code,
+	kbd,
+	pre,
+	samp {
+		font-family: var(--font-mono);
+	}
+
+	/* 和文と並べたときに太く見えないよう、Lucide の線を細くする */
+	svg.lucide {
+		stroke-width: 1.75;
+	}
+}

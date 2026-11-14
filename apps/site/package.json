@@ -1,0 +1,33 @@
+{
+	"name": "@takibi/site",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bun run --cwd ../../packages/takibi build:tokens && react-router dev",
+		"build": "bun run --cwd ../../packages/takibi build:tokens && react-router build",
+		"preview": "bun run build && wrangler dev",
+		"deploy": "bun run build && wrangler deploy",
+		"typecheck": "react-router typegen && tsc --noEmit"
+	},
+	"dependencies": {
+		"@storybook/react": "^10.6",
+		"lucide-react": "^1.70.0",
+		"marked": "^17.0.0",
+		"react": "^19.2",
+		"react-dom": "^19.2",
+		"react-router": "^7.17.0",
+		"storybook": "^10.6",
+		"takibi-design-system": "workspace:*"
+	},
+	"devDependencies": {
+		"@react-router/dev": "^7.17.0",
+		"@tailwindcss/vite": "^4.3",
+		"@types/node": "^24",
+		"@types/react": "^19.2",
+		"@types/react-dom": "^19.2",
+		"tailwindcss": "^4.3",
+		"typescript": "^6",
+		"vite": "^7",
+		"wrangler": "^4.98.0"
+	}
+}

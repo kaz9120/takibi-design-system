@@ -1,0 +1,63 @@
+{
+	"name": "takibi-design-system",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "焚き火を愛するエンジニアのプロダクトと発信を、1 つの言葉と見た目でそろえるためのデザインシステム",
+	"license": "MIT",
+	"sideEffects": [
+		"**/*.css",
+		"./src/embers.js"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./styles.css": "./src/styles.css",
+		"./tokens.css": "./dist/tokens.css",
+		"./tokens.json": "./dist/tokens.json",
+		"./spec": {
+			"types": "./src/spec.ts",
+			"default": "./src/spec.ts"
+		},
+		"./embers": {
+			"types": "./src/embers.d.ts",
+			"default": "./src/embers.js"
+		},
+		"./assets/*": "./assets/*"
+	},
+	"files": [
+		"src",
+		"!src/**/*.stories.tsx",
+		"dist",
+		"assets"
+	],
+	"scripts": {
+		"build:tokens": "bun scripts/tokens.mjs",
+		"prepack": "bun scripts/tokens.mjs",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"dependencies": {
+		"@base-ui/react": "^1.9.0",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"lucide-react": "^1.70.0",
+		"motion": "14.11.1",
+		"react-day-picker": "^10.0.2",
+		"tailwind-merge": "^3.7.0"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4.3",
+		"@types/react": "^19.2",
+		"@types/react-dom": "^19.2",
+		"react": "^19.2",
+		"react-dom": "^19.2",
+		"tailwindcss": "^4.3",
+		"typescript": "^6",
+		"vite": "^7"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

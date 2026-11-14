@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "takibi-design-system/styles.css";
+
+@source "./";
+
+/* content/ の Markdown を HTML にした本文 */
+@layer components {
+	.prose {
+		max-width: var(--container-prose);
+		color: var(--color-fg);
+		font-size: var(--text-base);
+		line-height: 1.8;
+	}
+	.prose > * + * {
+		margin-top: 1em;
+	}
+	.prose h2 {
+		margin-top: 2.5em;
+		padding-top: 0.25em;
+		color: var(--color-fg-strong);
+		font-size: var(--text-xl);
+		font-weight: 600;
+		line-height: 1.4;
+	}
+	.prose h3 {
+		margin-top: 2em;
+		color: var(--color-fg-strong);
+		font-size: var(--text-lg);
+		font-weight: 600;
+	}
+	.prose strong {
+		color: var(--color-fg-strong);
+		font-weight: 600;
+	}
+	.prose a {
+		color: var(--color-brand);
+		text-underline-offset: 4px;
+	}
+	.prose a:hover {
+		text-decoration: underline;
+	}
+	.prose ul,
+	.prose ol {
+		padding-left: 1.5em;
+	}
+	.prose ul {
+		list-style: disc;
+	}
+	.prose ol {
+		list-style: decimal;
+	}
+	.prose li + li {
+		margin-top: 0.35em;
+	}
+	.prose li::marker {
+		color: var(--color-fg-subtle);
+	}
+	.prose blockquote {
+		border-left: 2px solid var(--color-line-strong);
+		padding-left: 1em;
+		color: var(--color-fg-muted);
+	}
+	.prose code {
+		border-radius: var(--radius-sm);
+		background: var(--color-surface-sunken);
+		padding: 0.1em 0.35em;
+		font-family: var(--font-mono);
+		font-size: 0.875em;
+	}
+	.prose pre {
+		overflow-x: auto;
+		border: 1px solid var(--color-line-subtle);
+		border-radius: var(--radius-lg);
+		background: var(--color-surface-sunken);
+		padding: 1em 1.25em;
+		font-size: var(--text-sm);
+		line-height: 1.6;
+	}
+	.prose pre code {
+		background: none;
+		padding: 0;
+	}
+	.prose table {
+		display: block;
+		overflow-x: auto;
+		border-collapse: collapse;
+		font-size: var(--text-sm);
+	}
+	.prose th,
+	.prose td {
+		border-bottom: 1px solid var(--color-line-subtle);
+		padding: 0.6em 1em 0.6em 0;
+		text-align: left;
+		vertical-align: top;
+	}
+	.prose th {
+		color: var(--color-fg-muted);
+		font-weight: 500;
+		white-space: nowrap;
+	}
+	.prose hr {
+		border-color: var(--color-line-subtle);
+	}
+}
