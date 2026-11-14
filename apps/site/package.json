@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bun run --cwd ../../packages/takibi build:tokens && react-router dev",
-		"build": "bun run --cwd ../../packages/takibi build:tokens && react-router build",
+		"build": "bun run --cwd ../../packages/takibi build:tokens && react-router build && cp build/client/__spa-fallback.html build/client/404.html",
 		"preview": "bun run build && wrangler dev",
 		"deploy": "bun run build && wrangler deploy",
 		"typecheck": "react-router typegen && tsc --noEmit"
