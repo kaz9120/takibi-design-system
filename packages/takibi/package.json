@@ -4,6 +4,13 @@
 	"type": "module",
 	"description": "焚き火を愛するエンジニアのプロダクトと発信を、1 つの言葉と見た目でそろえるためのデザインシステム",
 	"license": "MIT",
+	"homepage": "https://design-system.y-kaz.com",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kaz9120/takibi-design-system.git",
+		"directory": "packages/takibi"
+	},
+	"bugs": "https://github.com/kaz9120/takibi-design-system/issues",
 	"sideEffects": [
 		"**/*.css",
 		"./src/embers.js"
