@@ -1,0 +1,66 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Takibi Design System</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--color-surface); color: var(--color-fg-strong); font-family: var(--font-sans); overflow: hidden; }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; }
+  .band { position: absolute; top: 0; left: 0; width: 960px; height: 120px; }
+  .band svg { display: block; width: 960px; height: 120px; }
+  .brand { fill: var(--ember-400); }
+  .deep { fill: var(--ember-600); }
+  .tint { fill: var(--ember-200); }
+  .moon { fill: var(--moon); }
+  .char { fill: var(--ink-300); }
+  .spark { fill: var(--ember-100); }
+  .spark-hot { fill: var(--ember-300); }
+  .blk { rx: var(--radius-lg); }
+  .small { rx: var(--radius-md); }
+  .words { position: absolute; left: 24px; right: 24px; bottom: 24px; }
+  .name { margin: 0; font-size: 64px; line-height: 0.95; font-weight: 600; letter-spacing: -0.02em; color: var(--color-fg-strong); }
+  .tag { margin: 12px 0 0 2px; font-size: 14px; line-height: 20px; color: var(--color-fg-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="band" aria-hidden="true">
+<svg viewBox="0 0 960 120" width="960" height="120" aria-hidden="true">
+<!--
+  blocks      ember-400 360x128（ブランドの基準色、最大）・ember-600 168x104・ember-200 96x128・moon 48x72（info、小さく）・ink-300 176x112。上端から外へはみ出させる
+  arrangement 幅の違う帯を横に並べ、すべて上端から垂れ下がる形。間は 16px
+  pattern     火の粉（小さな円）。ブランドの署名の動き「火の粉の伝播」「はぜる」から。ember-400 の面を地の色でくり抜かず、ember-100 の円を下から上へ間引きながら散らす
+  scales      角は radius-lg（10px）と radius-md（6px）、間隔は 16px と 24px、円の半径は 2〜5px
+-->
+<rect class="brand blk" x="24" y="-16" width="360" height="128" rx="10"/>
+<rect class="deep blk" x="400" y="-16" width="168" height="104" rx="10"/>
+<rect class="tint blk" x="584" y="-16" width="96" height="128" rx="10"/>
+<rect class="moon small" x="696" y="-16" width="48" height="72" rx="6"/>
+<rect class="char blk" x="760" y="-16" width="176" height="112" rx="10"/>
+<circle class="spark" cx="72" cy="96" r="5"/>
+<circle class="spark" cx="120" cy="88" r="4"/>
+<circle class="spark" cx="176" cy="98" r="5"/>
+<circle class="spark" cx="232" cy="84" r="4"/>
+<circle class="spark" cx="296" cy="94" r="5"/>
+<circle class="spark" cx="344" cy="80" r="3"/>
+<circle class="spark" cx="96" cy="64" r="3"/>
+<circle class="spark" cx="200" cy="58" r="3"/>
+<circle class="spark" cx="264" cy="52" r="2"/>
+<circle class="spark" cx="152" cy="36" r="2"/>
+<circle class="spark" cx="320" cy="30" r="2"/>
+<circle class="spark-hot" cx="792" cy="78" r="4"/>
+<circle class="spark-hot" cx="840" cy="62" r="3"/>
+<circle class="spark-hot" cx="896" cy="72" r="4"/>
+<circle class="spark-hot" cx="872" cy="40" r="2"/>
+<circle class="spark-hot" cx="816" cy="28" r="2"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Takibi Design System</h1>
+<p class="tag">飾りは足さず、必要なものだけを置きます。</p>
+</div>
+</div>
+</body>
+</html>

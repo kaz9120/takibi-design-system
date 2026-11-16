@@ -38,6 +38,7 @@
 	],
 	"scripts": {
 		"build:tokens": "bun scripts/tokens.mjs",
+		"build:design-system": "bun scripts/design-system/build.mjs",
 		"prepack": "bun scripts/tokens.mjs",
 		"typecheck": "tsc --noEmit"
 	},

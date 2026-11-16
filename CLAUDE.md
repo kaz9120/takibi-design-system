@@ -143,3 +143,5 @@ npm への公開は GitHub Actions（`.github/workflows/publish.yml`）が行う
 2. 同じ版のタグを付けて push する（`git tag v0.2.0 && git push origin main v0.2.0`）
 
 ワークフローは、タグと `version` がそろっているかを確かめ、検証の 4 つを通してから公開する。サイトは `apps/site` で `bunx wrangler deploy` を実行してデプロイする。
+
+Claude の「Design System」へは、`bun run build:site` と `bun run build:design-system` で書き出し、Claude Code の Artifact ツールで公開する。同期先と手順は `packages/takibi/scripts/design-system/README.md` にある。Claude Code の `/design-sync` は単体の Claude Design（2026-12-14 終了）に送るものなので使わない。

@@ -11,6 +11,7 @@
 		"site": "bun run --cwd apps/site dev",
 		"build:site": "bun run --cwd apps/site build",
 		"build:tokens": "bun run --cwd packages/takibi build:tokens",
+		"build:design-system": "bun run --cwd packages/takibi build:design-system",
 		"typecheck": "bun run --cwd packages/takibi typecheck && bun run --cwd apps/workbench typecheck && bun run --cwd apps/site typecheck",
 		"lint": "biome check .",
 		"format": "biome check --write .",

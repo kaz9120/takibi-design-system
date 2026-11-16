@@ -1,0 +1,20 @@
+{
+	"url": "https://claude.ai/artifact/8KQLjF8CQCXTWx5SFNEawg",
+	"createdAt": "2026-11-16T11:10:00Z",
+	"assets": {
+		"Logos": {
+			"mark-cream.svg": {
+				"name": "mark-cream.svg",
+				"blob": "d16d51affebb375e664ba930fb8fec0c",
+				"size": 2658,
+				"type": "image/svg+xml"
+			},
+			"mark-dark.svg": {
+				"name": "mark-dark.svg",
+				"blob": "e7012c072964998f75524c035a6ba643",
+				"size": 2658,
+				"type": "image/svg+xml"
+			}
+		}
+	}
+}

@@ -1,0 +1,17 @@
+/* Claude の Design System に載せる bundle.css の入口 */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=LINE+Seed+JP:wght@400;700&display=swap");
+@import "tailwindcss";
+@import "../../src/styles.css";
+
+@source "../../src";
+/* プレビューの HTML に書くクラス */
+@source "./build.mjs";
+
+/* デザインを組むときに使う、役割のトークンと間隔のクラス。コンポーネントで使っていなくても出す */
+@source inline("{bg,text,border}-{surface,surface-raised,surface-overlay,surface-sunken,surface-hover,fg,fg-strong,fg-muted,fg-subtle,fg-on-brand,brand,brand-soft,line,line-subtle,line-strong,success,warning,danger,info}");
+@source inline("{p,px,py,pt,pb,m,mx,my,mt,mb,gap,gap-x,gap-y}-{0,1,2,3,4,5,6,8,10,12,16,20,24}");
+@source inline("text-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl,6xl}");
+@source inline("rounded-{sm,md,lg,xl,full}");
+@source inline("shadow-{rim,card,pop,glow,glow-soft,glow-strong}");
+@source inline("font-{sans,mono,normal,medium,semibold,bold}");
+@source inline("max-w-(--container-{prose,narrow,content,wide,app})");
