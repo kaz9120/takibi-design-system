@@ -40,6 +40,8 @@ jobs:
           fi
 
       - run: bun install --frozen-lockfile
+      # dist/ は git の対象外。typecheck とビルドが dist/tokens.json を読むので、先に書き出す
+      - run: bun run build:tokens
       - run: bun run typecheck
       - run: bun run lint
       - run: bun run build:workbench
