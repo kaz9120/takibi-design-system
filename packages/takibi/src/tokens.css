@@ -5,21 +5,140 @@
    1. 基本の色（--ink-* / --ember-* / 補助色）: 値の一覧。UI からは直接使わない
    2. 役割のトークン（@theme）: UI はこちらだけを使う。Tailwind のユーティリティになる
    ダークが既定。[data-theme="light"] で昼に切り替える。
+   面、文字、枠線の色は空から取る。夜は夜の空、昼は日中の空の色相で、時刻（--sky-phase）と天気（--sky-overcast）で動く。
+   ブランドカラーと温度の色は焚き火の色で、空の状態では変わらない。
    ============================================================ */
 
 :root {
-	/* 炭・夜 */
-	--ink-0: #0a0907;
-	--ink-50: #13110e;
-	--ink-100: #1a1814;
-	--ink-200: #26221c;
-	--ink-300: #3a342b;
-	--ink-400: #5a5247;
-	--ink-500: #7d7468;
-	--ink-600: #a8a094;
-	--ink-700: #d4cdc1;
-	--ink-800: #ebe5d8;
-	--ink-900: #f5f1e6;
+	/*
+	 * 空の状態。面、文字、枠線の色は、この 2 つの値で動く。
+	 * --sky-phase: 0 は真夜中か正午。1 は日の出・日の入りの間際（夜のテーマでは青い薄明、昼のテーマでは低い日の暖かい光）
+	 * --sky-overcast: 0 は晴れ、1 は曇り。曇りでは色みが抜けて灰色に寄る
+	 * 時刻に合わせるときは startDaylight()（src/lib/daylight.ts）が --sky-phase を書く。天気は data-weather="cloudy" で渡す
+	 */
+	--sky-phase: 0;
+	--sky-overcast: 0;
+
+	/*
+	 * 夜の空の色。明るさは 11 段で、色相と彩度を夜の空（青みの黒、色相 255）に合わせた。
+	 * 薄明に近づくと色相 264 の青が濃くなり、暗い段は 1.2% 明るくなる。曇りでは彩度が 0.004 まで下がる。
+	 * どの状態でも明るさはほぼ変わらないので、文字と面の明るさの比は保たれる（本文 14.7:1 以上、補足 5.9:1 以上）
+	 */
+	--ink-0: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(14.0% 0.012 255), oklch(15.2% 0.038 264) calc(var(--sky-phase) * 100%)),
+		oklch(14.0% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-50: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(17.9% 0.013 255), oklch(19.1% 0.042 264) calc(var(--sky-phase) * 100%)),
+		oklch(17.9% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-100: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(21.0% 0.014 255), oklch(22.2% 0.044 264) calc(var(--sky-phase) * 100%)),
+		oklch(21.0% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-200: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(25.4% 0.015 255), oklch(26.6% 0.048 264) calc(var(--sky-phase) * 100%)),
+		oklch(25.4% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-300: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(32.8% 0.017 255), oklch(34.0% 0.055 264) calc(var(--sky-phase) * 100%)),
+		oklch(32.8% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-400: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(44.3% 0.02 255), oklch(45.5% 0.065 264) calc(var(--sky-phase) * 100%)),
+		oklch(44.3% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-500: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(56.4% 0.02 255), oklch(56.4% 0.065 264) calc(var(--sky-phase) * 100%)),
+		oklch(56.4% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-600: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(70.9% 0.016 255), oklch(70.9% 0.052 264) calc(var(--sky-phase) * 100%)),
+		oklch(70.9% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-700: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(85.1% 0.012 255), oklch(85.1% 0.039 264) calc(var(--sky-phase) * 100%)),
+		oklch(85.1% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-800: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(92.3% 0.01 255), oklch(92.3% 0.032 264) calc(var(--sky-phase) * 100%)),
+		oklch(92.3% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+	--ink-900: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(95.8% 0.009 255), oklch(95.8% 0.029 264) calc(var(--sky-phase) * 100%)),
+		oklch(95.8% 0.004 255) calc(var(--sky-overcast) * 100%)
+	);
+
+	/*
+	 * 昼の空の色。昼のテーマの面、文字、枠線に使う。色相は日中の空（238）。
+	 * 日の出・日の入りに近づくと、低い日の光の色（色相 78）に寄る。曇りでは彩度が 0.003 まで下がる
+	 */
+	--day-surface: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(97.9% 0.008 238), oklch(97.9% 0.013 78) calc(var(--sky-phase) * 100%)),
+		oklch(97.9% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-surface-raised: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(99.4% 0.007 238), oklch(99.4% 0.012 78) calc(var(--sky-phase) * 100%)),
+		oklch(99.4% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-surface-sunken: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(95.0% 0.008 238), oklch(95.0% 0.014 78) calc(var(--sky-phase) * 100%)),
+		oklch(95.0% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-fg: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(26.4% 0.014 238), oklch(26.4% 0.023 78) calc(var(--sky-phase) * 100%)),
+		oklch(26.4% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-fg-strong: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(19.1% 0.012 238), oklch(19.1% 0.02 78) calc(var(--sky-phase) * 100%)),
+		oklch(19.1% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-fg-muted: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(45.7% 0.019 238), oklch(45.7% 0.031 78) calc(var(--sky-phase) * 100%)),
+		oklch(45.7% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-fg-subtle: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(61.1% 0.017 238), oklch(61.1% 0.028 78) calc(var(--sky-phase) * 100%)),
+		oklch(61.1% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-line: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(86.2% 0.011 238), oklch(86.2% 0.018 78) calc(var(--sky-phase) * 100%)),
+		oklch(86.2% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-line-subtle: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(92.2% 0.009 238), oklch(92.2% 0.015 78) calc(var(--sky-phase) * 100%)),
+		oklch(92.2% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-line-strong: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(60.9% 0.017 238), oklch(60.9% 0.028 78) calc(var(--sky-phase) * 100%)),
+		oklch(60.9% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
+	--day-line-hover: color-mix(
+		in oklab,
+		color-mix(in oklab, oklch(45.5% 0.019 238), oklch(45.5% 0.031 78) calc(var(--sky-phase) * 100%)),
+		oklch(45.5% 0.003 238) calc(var(--sky-overcast) * 100%)
+	);
 
 	/* ブランドカラー（ember） */
 	--ember-50: #fef4e8;
@@ -38,6 +157,13 @@
 	--moss: #7a8c5e;
 	--moon: #c8d4e0;
 	--rust: #b8503a;
+
+	/* 温度（heat）。火は熱いほど白く、冷めるほど赤く暗くなる。芯から灰までの 5 段 */
+	--heat-white: #fff1d0; /* 白熱。炎の芯、はぜた瞬間の火の粉。純白にはしない */
+	--heat-yellow: #ffd27a; /* 炎 */
+	--heat-orange: #f47d3a; /* 熾火。ember-400 と同じ */
+	--heat-red: #c64414; /* 冷め始め。ember-600 と同じ */
+	--heat-ash: #7d7468; /* 灰 */
 }
 
 @theme {
@@ -49,7 +175,15 @@
 	--color-surface-raised: var(--ink-100); /* カード */
 	--color-surface-overlay: var(--ink-200); /* ポップオーバー、メニュー、ダイアログ */
 	--color-surface-sunken: var(--ink-0); /* 入力欄、コード、キー表示 */
-	--color-surface-hover: rgb(245 241 230 / 0.07); /* ホバー。半透明なので、どの面の上でも一段明るくなる */
+	--color-surface-hover: rgb(228 236 250 / 0.07); /* ホバー。半透明なので、どの面の上でも一段明るくなる */
+	--color-backdrop: color-mix(
+		in oklab,
+		var(--color-backdrop-solid) 60%,
+		transparent
+	); /* バックドロップ。ダイアログの後ろを暗くする。昼も暗いまま */
+	--color-backdrop-solid: var(
+		--ink-0
+	); /* バックドロップの元の色。濃さを opacity で動かすとき（Drawer）に使う */
 
 	/* 文字 */
 	--color-fg: var(--ink-800); /* 本文 */
@@ -62,8 +196,16 @@
 	/* 線 */
 	--color-line: var(--ink-300); /* 標準の区切り線、カードの枠 */
 	--color-line-subtle: var(--ink-200); /* 目立たせない区切り */
-	--color-line-strong: #746b5f; /* 入力欄など操作できる要素の枠（3:1 以上） */
-	--color-line-hover: #a39888; /* 操作できる要素の枠の hover */
+	--color-line-strong: color-mix(
+		in oklab,
+		var(--ink-400),
+		var(--ink-500) 75%
+	); /* 入力欄など操作できる要素の枠（3:1 以上） */
+	--color-line-hover: color-mix(
+		in oklab,
+		var(--ink-500),
+		var(--ink-600) 85%
+	); /* 操作できる要素の枠の hover */
 
 	/* ブランドカラー。CTA、リンク、フォーカス、ロゴだけに使う */
 	--color-brand: var(--ember-400);
@@ -71,6 +213,16 @@
 	--color-brand-active: var(--ember-500);
 	--color-brand-soft: rgb(244 125 58 / 0.14);
 	--color-focus: var(--ember-400);
+
+	/*
+	 * 温度。光、火の粉、炎が、時間と距離で冷めていく順に使う。core が最も熱く、ash が冷めきった色。
+	 * 演出（光、火の粉、炎）だけに使い、文字や面の色には使わない
+	 */
+	--color-heat-core: var(--heat-white); /* 芯。生まれた瞬間、最も近い所 */
+	--color-heat-flame: var(--heat-yellow); /* 炎 */
+	--color-heat-ember: var(--heat-orange); /* 熾火。ブランドカラーと同じ */
+	--color-heat-coal: var(--heat-red); /* 冷め始め。光の外側 */
+	--color-heat-ash: var(--heat-ash); /* 灰。消える直前 */
 
 	/* ハンドル（スライダー）。夜は明るい文字色、昼は浮いている面（surface-overlay）の色にする。濃い色だと穴のように見えるため */
 	--color-thumb: var(--ink-900);
@@ -152,93 +304,41 @@
 	--ease-ember: cubic-bezier(0.16, 0.84, 0.24, 1); /* 終わりがゆっくり。hover / focus */
 	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* 閉じる、押し込む */
 	--ease-breath: cubic-bezier(0.45, 0.05, 0.55, 0.95); /* 呼吸 */
+	/* 冷える。火の粉の明るさは 0.09 秒で半分、0.27 秒で 10%、0.56 秒で 1% になる。最初に大きく落ちて、暗い光が長く残る */
+	--ease-cool: cubic-bezier(0.1, 0.4, 0.15, 1);
+	/* 昇る。煙は浮力で加速しながら上がる。消える要素の位置と大きさに使う */
+	--ease-rise: cubic-bezier(0.4, 0, 0.9, 0.5);
 	--ease-settle: cubic-bezier(0.34, 1.12, 0.32, 1); /* 着地。わずかに行き過ぎて戻る */
 	/*
-	 * スプリング。CSS の linear() で表したばね。対応する長さ（--duration-spring-*）と組で使う。
-	 * JS 側の同じ値は src/lib/motion.ts の springs にある。
+	 * 焚き火の動きから取った 4 つの曲線。対応する長さ（--duration-pop / land / ignite / sway）と組で使う。
+	 * JS 側の同じ動きは src/lib/motion.ts の springs にある。
 	 */
-	--ease-spring-snappy: linear(
+	/* はぜる: 火の粉が飛び出す動き。飛び出した速さは空気の抵抗で 0.12 秒ごとに約 1/3 になり、行き過ぎない。アイコンの入れ替え、小さな飾り */
+	--ease-pop: cubic-bezier(0.15, 0.75, 0.3, 1);
+	/*
+	 * 載る: 薪が落ちて載る動き。重力で加速しながら落ち（全体の 51%）、当たって 12% だけ跳ね返り、もう一度小さく跳ねて止まる。
+	 * 木どうしの跳ね返りを 0.35 として計算した。押下、hover の拡大、ハンドル
+	 */
+	--ease-land: linear(
 		0,
-		0.11,
-		0.346,
-		0.606,
-		0.826,
-		0.983,
-		1.073,
-		1.108,
-		1.106,
-		1.085,
-		1.056,
-		1.029,
-		1.008,
-		0.995,
-		0.989,
-		0.988,
-		0.989,
-		0.992,
-		0.996,
-		0.998,
-		1,
-		1.001,
-		1.001,
-		1.001,
+		0.06 12.8%,
+		0.25 25.7%,
+		0.56 38.5%,
+		1 51.4%,
+		0.91 60.4%,
+		0.88 69.4%,
+		0.91 78.4%,
+		1 87.4%,
+		0.985 93.7%,
 		1
-	); /* 行き過ぎ 11%。アイコン、小さな飾り */
-	--ease-spring-press: linear(
-		0,
-		0.081,
-		0.256,
-		0.461,
-		0.656,
-		0.821,
-		0.94,
-		1.018,
-		1.061,
-		1.078,
-		1.077,
-		1.065,
-		1.049,
-		1.033,
-		1.019,
-		1.008,
-		1.001,
-		0.996,
-		0.994,
-		0.994,
-		0.994,
-		0.996,
-		0.997,
-		0.998,
-		1
-	); /* 行き過ぎ 8%。押下から戻る、ハンドル */
-	--ease-spring-soft: linear(
-		0,
-		0.077,
-		0.246,
-		0.438,
-		0.622,
-		0.774,
-		0.886,
-		0.964,
-		1.012,
-		1.036,
-		1.045,
-		1.043,
-		1.037,
-		1.028,
-		1.019,
-		1.012,
-		1.006,
-		1.002,
-		1,
-		0.999,
-		0.998,
-		0.998,
-		0.998,
-		0.999,
-		1
-	); /* 行き過ぎ 4.5%。ポップオーバー、ダイアログ */
-	--ease-spring-glide: linear(
+	);
+	/*
+	 * 着火: 火が移って炎が立ち上がる動き。焚き火の計算モデルで、火の強さを 0.2 から 1.0 へ上げたときの明るさを 14 回測って平均した。
+	 * 出だしは遅く（0.10 秒で 10%）、0.42 秒で 90% に達し、8% 行き過ぎてから戻る。ポップオーバー、ダイアログ、文字の送り
+	 */
+	--ease-ignite: linear(0, 0.13 13.3%, 0.3 26.7%, 0.54 40%, 0.88 53.3%, 1.08 66.7%, 1.08 80%, 1.02 90%, 1);
+	/* 揺れる: 炎が横へ寄る動き。行き過ぎない。選択インジケーター、位置や幅の移動。この曲線は計算モデルから取っていない */
+	--ease-sway: linear(
 		0,
 		0.063,
 		0.192,
@@ -264,12 +364,12 @@
 		0.998,
 		0.999,
 		1
-	); /* 行き過ぎなし。選択インジケーター、位置の移動 */
+	);
 
 	--animate-*: initial;
 	--animate-spin: spin 1s linear infinite;
 	--animate-breath: breath var(--duration-breath) var(--ease-breath) infinite;
-	--animate-ember-pulse: ember-pulse 1800ms var(--ease-breath) infinite;
+	--animate-ember-pulse: ember-pulse var(--duration-flicker-c) var(--ease-breath) infinite;
 
 	/* 幅 */
 	--container-prose: 68ch;
@@ -286,10 +386,10 @@
 	@keyframes breath {
 		0%,
 		100% {
-			box-shadow: 0 0 0 0 rgb(244 125 58 / 0);
+			box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-heat-ember) 0%, transparent);
 		}
 		50% {
-			box-shadow: 0 0 0 6px rgb(244 125 58 / 0.18);
+			box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-heat-ember) 18%, transparent);
 		}
 	}
 	@keyframes ember-pulse {
@@ -304,30 +404,59 @@
 
 /* 影の値。Tailwind の shadow-* は値をクラスに書き込むので、テーマで変える値はここに置き、@theme から参照する */
 :root {
-	--elevation-rim: inset 0 1px 0 rgb(255 240 220 / 0.04);
+	--elevation-rim: inset 0 1px 0 rgb(222 232 255 / 0.04);
 	--elevation-card:
-		0 1px 0 rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 240 220 / 0.03);
+		0 1px 0 rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(222 232 255 / 0.03);
 	--elevation-pop:
-		0 12px 40px rgb(0 0 0 / 0.6), 0 2px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 240 220 / 0.05);
-	--elevation-glow: 0 0 0 1px rgb(244 125 58 / 0.32), 0 4px 24px rgb(244 125 58 / 0.28);
-	--elevation-glow-soft: 0 0 32px rgb(244 125 58 / 0.15);
-	--elevation-glow-strong: 0 0 0 1px rgb(244 125 58 / 0.5), 0 8px 36px rgb(244 125 58 / 0.45);
-	/* ブランドカラーの光。伸びている進捗の線など、細い要素の周りに付ける。昼も同じ色 */
-	--elevation-ember: 0 0 10px rgb(244 125 58 / 0.45);
+		0 12px 40px rgb(0 0 0 / 0.6), 0 2px 0 rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(222 232 255 / 0.05);
+}
+
+/*
+ * 光の値。火に近いほど明るく黄色く、遠いほど暗く赤くなるので、内側に flame、外側に coal を重ねる。
+ * 温度の色を参照するので、昼の値は温度の色の差し替えだけで決まる
+ */
+:root,
+[data-theme="light"] {
+	--elevation-glow:
+		0 0 0 1px color-mix(in oklab, var(--color-heat-ember) 36%, transparent),
+		0 2px 10px color-mix(in oklab, var(--color-heat-flame) 20%, transparent),
+		0 8px 30px color-mix(in oklab, var(--color-heat-coal) 30%, transparent);
+	--elevation-glow-soft:
+		0 0 14px color-mix(in oklab, var(--color-heat-flame) 8%, transparent),
+		0 0 36px color-mix(in oklab, var(--color-heat-coal) 18%, transparent);
+	--elevation-glow-strong:
+		0 0 0 1px color-mix(in oklab, var(--color-heat-flame) 50%, transparent),
+		0 2px 14px color-mix(in oklab, var(--color-heat-flame) 34%, transparent),
+		0 10px 40px color-mix(in oklab, var(--color-heat-coal) 46%, transparent);
+	/* 伸びている進捗の線など、細い要素の周りに付ける光 */
+	--elevation-ember:
+		0 0 4px color-mix(in oklab, var(--color-heat-flame) 55%, transparent),
+		0 0 12px color-mix(in oklab, var(--color-heat-ember) 45%, transparent);
 }
 
 /* 時間は Tailwind の名前空間がないので、ふつうの変数で持つ。duration-(--duration-fast) のように使う */
 :root {
-	--duration-instant: 75ms; /* 押下、focus の表示開始 */
+	/*
+	 * 時間の段。焚き火の計算モデルで測った時間に合わせてある。
+	 * 90ms: 火の粉の明るさが半分になるまで / 120ms: 火の粉の速さが空気の抵抗で約 1/3 になるまで / 220ms: 炎の明るさが続く長さ /
+	 * 360ms: 火の粉が止まるまで（120ms の 3 倍） / 560ms: 火の粉の明るさが 1% になるまで / 3700ms: 炎のいちばん遅い揺れ（0.27Hz）の 1 周期
+	 */
+	--duration-instant: 90ms; /* 押下、focus の表示開始 */
 	--duration-fast: 120ms; /* hover の色、ツールチップ */
-	--duration-base: 200ms; /* 状態の切り替え（標準） */
+	--duration-base: 220ms; /* 状態の切り替え（標準） */
 	--duration-slow: 360ms; /* ダイアログ、パネルの開閉 */
 	--duration-relax: 560ms; /* レイアウトの移動、ページ遷移 */
-	--duration-breath: 3600ms; /* 呼吸するループ */
-	--duration-spring-snappy: 500ms;
-	--duration-spring-press: 460ms;
-	--duration-spring-soft: 510ms;
-	--duration-spring-glide: 330ms;
+	--duration-breath: 3700ms; /* 呼吸するループ */
+	/* 余熱。hover の光が消えるまで。1500K の火の粉が冷えて、明るさが 1% になるまでの時間（0.56 秒）から取った */
+	--duration-cool: 560ms;
+	/* ゆらぎ。焚き火の計算モデルの炎を測って決めた 3 つの周期。互いに割り切れないので、同じ形は約 30 分繰り返さない */
+	--duration-flicker-a: 4700ms; /* 明るさ。この間に山が 4 つ（平均 0.85Hz） */
+	--duration-flicker-b: 1300ms; /* 大きさ */
+	--duration-flicker-c: 2900ms; /* 位置 */
+	--duration-pop: 360ms; /* はぜる。空気の抵抗で止まるまで（0.12 秒の 3 倍） */
+	--duration-land: 240ms; /* 載る。6cm 落ちて 2 回跳ねて止まるまでの 0.21 秒から */
+	--duration-ignite: 500ms; /* 着火。実測の 0.75 秒を 3 分の 2 に縮めた */
+	--duration-sway: 330ms; /* 揺れる */
 
 	/* 振れ幅。押す、浮かせる、入れ替えるときにどれだけ動かすか */
 	--press-scale: 0.97; /* ボタン */
@@ -344,26 +473,31 @@
 }
 
 /* 昼（ライト）。役割のトークンだけを差し替える */
+/* 天気: アプリが data-weather を付ける。デザインシステムは天気を取りに行かない */
+[data-weather="cloudy"] {
+	--sky-overcast: 1;
+}
+
 [data-theme="light"] {
 	color-scheme: light;
 
-	--color-surface: #fbf8f0;
-	--color-surface-raised: #fffdf8;
-	--color-surface-overlay: #fffdf8;
-	--color-surface-sunken: #f3eee2;
-	--color-surface-hover: rgb(42 36 27 / 0.06);
+	--color-surface: var(--day-surface);
+	--color-surface-raised: var(--day-surface-raised);
+	--color-surface-overlay: var(--day-surface-raised);
+	--color-surface-sunken: var(--day-surface-sunken);
+	--color-surface-hover: rgb(22 30 44 / 0.06);
 
-	--color-fg: #2a241b;
-	--color-fg-strong: #18130d;
-	--color-fg-muted: #5f5647;
-	--color-fg-subtle: #8c8273;
-	--color-fg-on-brand: #fff8ee;
-	--color-fg-on-danger: #fff8ee;
+	--color-fg: var(--day-fg);
+	--color-fg-strong: var(--day-fg-strong);
+	--color-fg-muted: var(--day-fg-muted);
+	--color-fg-subtle: var(--day-fg-subtle);
+	--color-fg-on-brand: var(--day-surface-raised);
+	--color-fg-on-danger: var(--day-surface-raised);
 
-	--color-line: #d9d1bf;
-	--color-line-subtle: #ebe5d3;
-	--color-line-strong: #8f8169;
-	--color-line-hover: #5f5545;
+	--color-line: var(--day-line);
+	--color-line-subtle: var(--day-line-subtle);
+	--color-line-strong: var(--day-line-strong);
+	--color-line-hover: var(--day-line-hover);
 
 	--color-brand: #b9420f;
 	--color-brand-hover: var(--ember-700);
@@ -371,7 +505,14 @@
 	--color-brand-soft: rgb(198 68 20 / 0.1);
 	--color-focus: #b9420f;
 
-	--color-thumb: #fffdf8;
+	/* 明るい背景では白熱の色が見えないので、温度の段を全体に暗い側へずらす */
+	--color-heat-core: var(--ember-300);
+	--color-heat-flame: var(--ember-400);
+	--color-heat-ember: #b9420f;
+	--color-heat-coal: var(--ember-700);
+	--color-heat-ash: #a39888;
+
+	--color-thumb: var(--day-surface-raised);
 
 	--color-success: #4f6136;
 	--color-success-soft: rgb(79 97 54 / 0.12);
@@ -388,8 +529,7 @@
 
 	--elevation-rim: inset 0 1px 0 rgb(255 255 255 / 0.6);
 	--elevation-card:
-		0 1px 0 rgb(38 28 16 / 0.04), 0 6px 18px rgb(38 28 16 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.6);
+		0 1px 0 rgb(16 24 38 / 0.04), 0 6px 18px rgb(16 24 38 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.6);
 	--elevation-pop:
-		0 16px 36px rgb(38 28 16 / 0.12), 0 2px 0 rgb(38 28 16 / 0.04), inset 0 1px 0 rgb(255 255 255 / 0.6);
-	--elevation-glow: 0 0 0 1px rgb(185 66 15 / 0.4), 0 4px 20px rgb(185 66 15 / 0.18);
+		0 16px 36px rgb(16 24 38 / 0.12), 0 2px 0 rgb(16 24 38 / 0.04), inset 0 1px 0 rgb(255 255 255 / 0.6);
 }

@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>雨のモデル</title>
+<!--
+  風のない日の雨。降水量（mm/h）から、粒の大きさ、数、落ちる速さ、筋の長さと濃さ、かすみ、波紋を計算して描く。
+
+  計算に使った式と出典
+  1. 粒の直径の分布（Marshall–Palmer）: N(D) = N0·exp(−Λ·D)、N0 = 8000 m^-3 mm^-1、Λ = 4.1·R^-0.21 mm^-1（R は mm/h、D は mm）
+     Marshall & Palmer (1948) "The distribution of raindrops with size", J. Meteorology 5, 165–166
+     https://en.wikipedia.org/wiki/Raindrop_size_distribution
+  2. 終端速度: v(D) = 9.65 − 10.3·exp(−0.6·D) m/s（D は mm）。Gunn & Kinzer (1949) の実測への当てはめ
+     Atlas, Srivastava & Sekhon (1973) "Doppler radar characteristics of precipitation at vertical incidence", Rev. Geophys. 11(1), 1–35
+     式の形は https://arxiv.org/pdf/1707.05225 と https://disdrodb.readthedocs.io/en/v1.0.0/_modules/disdrodb/fall_velocity/rain.html で確かめた
+  3. 筋の濃さ: 露光時間 T の間に、直径 D の粒が 1 点を覆う時間は τ = D / v。その点の明るさは
+     I = I_背景 + (τ/T)·(I_粒 − I_背景)。粒は周囲の約 165 度を屈折して映すので、I_粒 は空の明るさに近い。
+     このため、筋は背景が空より暗い所でだけ明るく見え、空の前では見えない
+     Garg & Nayar (2007) "Vision and Rain", Int. J. Computer Vision 75, 3–27（doi:10.1007/s11263-006-0028-6）
+  4. かすみ: 粒は光の波長よりずっと大きいので、消散の効率を 2 とする（幾何光学の極限）。
+     消散係数 β = ∫ (π/4)·D²·2·N(D) dD = π·N0/Λ³（mm²/m³。1e-6 を掛けて m^-1）。視程は 3.912/β（Koschmieder の式、コントラスト 2%）
+  5. 波紋: 水面の波の位相速度は、波長 1.7 cm のとき最小の 0.23 m/s になる。輪はこの速さで広がるとした
+     https://en.wikipedia.org/wiki/Capillary_wave （Lamb, Hydrodynamics）
+     減衰は粘性による 2νk²（ν = 1.0e-6 m²/s、k = 2π/0.017 m）= 0.27 s^-1 と、輪が広がることによる 1/√r
+
+  仮定（出典のない値）
+  - 露光時間の既定は 1/60 秒（人の目に残る時間の目安として置いた値。スライダーで変えられる）
+  - 波紋の最初の振幅は、着地点から D の距離で 0.7·D（着地点から 5 cm 離れた所で、水面の傾きが 15 度を超えない大きさ）。輪は 3 本ほどの束とし、1.6 秒で描くのをやめる
+  - 輪を 1 つずつ描くのは、1 m² に 1 秒あたり約 120 個までの大きい粒だけ。それより小さい粒の波は、水面の細かい荒れとしてまとめた。
+    荒れの大きさ（傾きのばらつき）は、1 秒に落ちる粒の数の平方根に比例するとした
+  - しぶきは、0.8 mm 以上の粒 1 つにつき 3 個。直径は 0.3·D、上向きの速さ 0.7〜1.6 m/s、横の速さ 0.3〜0.9 m/s。重力 9.8 m/s² で放物線を描く
+  - 雨のない状態でも、霧による消散 0.0005 m^-1（視程 約 8 km）を足している
+  - 背景（空、木立、地面、水たまりの配置）は、雨を見るための単純な形。空の明るさを 1 とした相対値で決めた
+
+  描き方
+  - カメラは高さ 1.1 m（座った目の高さ）で水平に向ける。視線を傾けず、画面の中心だけを下へずらしているので、垂直な筋は画面上でも垂直のままになる
+  - 粒は 1 個ずつ 3 次元の位置を持ち、透視投影する。近い粒が太く長く速く見えるのは投影の結果で、層は分けていない
+  - 見かけの太さ D/z が θ より大きい粒だけを 1 本ずつ描く。θ は「粒の数の上限」から決まる。それより小さく見える粒は 4 のかすみに含まれる
+  - 計算は線形の明るさで行い、最後に階調を圧縮して、±0.5/255 のノイズを足して縞を防ぐ
+-->
+<style>
+  :root { color-scheme: dark; --bg: #0c0d0e; --fg: #d9d6cf; --muted: #9a968e; --line: #2c2d2f; --panel: rgba(14,15,16,0.78); --accent: #9db4c8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { position: fixed; left: 12px; top: 12px; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .panel h1 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 7.5em 1fr 5.5em; align-items: center; gap: 8px; margin: 6px 0; }
+  .row label { color: var(--muted); }
+  .row output { text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); min-height: 24px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  dt { color: var(--muted); } dd { margin: 0; text-align: right; }
+  button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; min-height: 28px; }
+  .head { display: flex; justify-content: space-between; align-items: center; }
+  .panel.closed .body { display: none; }
+  .err { position: fixed; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel" id="panel">
+  <div class="head"><h1>風のない日の雨</h1><button id="toggle" type="button" aria-expanded="true">閉じる</button></div>
+  <div class="body">
+    <div class="row"><label for="rate">降水量</label><input id="rate" type="range" min="0" max="1" step="0.001" value="0.5"><output id="rateOut"></output></div>
+    <div class="row"><label for="exp">露光時間</label><input id="exp" type="range" min="0" max="1" step="0.001" value="0.62"><output id="expOut"></output></div>
+    <div class="row"><label for="cap">粒の数の上限</label><input id="cap" type="range" min="5000" max="200000" step="5000" value="80000"><output id="capOut"></output></div>
+    <dl>
+      <dt>粒の数（空気 1 m³）</dt><dd id="iN"></dd>
+      <dt>直径の中央値 / 体積の中央値</dt><dd id="iD"></dd>
+      <dt>落ちる速さ（1 mm / 3 mm）</dt><dd id="iV"></dd>
+      <dt>1 本ずつ描く下限 θ</dt><dd id="iT"></dd>
+      <dt>雨だけの視程</dt><dd id="iB"></dd>
+      <dt>1 コマの間隔</dt><dd id="iF"></dd>
+      <dt>描画の時間（GPU）</dt><dd id="iG"></dd>
+    </dl>
+  </div>
+</div>
+<div class="err" id="err">このブラウザでは WebGL2 の浮動小数テクスチャが使えないため、表示できません。</div>
+<script>
+(() => {
+  const canvas = document.getElementById("c");
+  const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, powerPreference: "high-performance" });
+  if (!gl || !gl.getExtension("EXT_color_buffer_float")) {
+    document.getElementById("err").style.display = "grid";
+    return;
+  }
+  const timerExt = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+
+  // ---- 共有する GLSL: 乱数、背景（空、木立）、地面 ----
+  const COMMON = `#version 300 es
+precision highp float;
+precision highp int;
+uniform vec2 uRes;
+uniform float uTx, uTy, uTyc, uHc;
+uniform float uBeta;      // 雨と霧の消散係数 [1/m]
+uniform float uTime;
+
+uint pcg(uint v) {
+  uint s = v * 747796405u + 2891336453u;
+  uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u;
+  return (w >> 22u) ^ w;
+}
+float rnd(uint v) { return (float(pcg(v) >> 8u) + 0.5) * (1.0 / 16777216.0); }
+
+float h21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y);
+}
+float fbm(vec2 p) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; }
+  return s;
+}
+
+const vec3 AIR = vec3(0.60, 0.66, 0.72);   // かすみの色。空の低い所と同じ
+const float LAYER_D[3] = float[3](45.0, 95.0, 210.0);
+
+vec3 fog(vec3 c, float dist) {
+  float t = exp(-uBeta * dist);
+  return c * t + AIR * (1.0 - t);
+}
+vec3 skyRad(vec3 d) {
+  float e = clamp(d.y / length(d.xz), 0.0, 1.0);
+  // 雲の濃淡。雲の底の明るさは場所で ±25% ほど変わるとした
+  float cloud = fbm(vec2(d.x / d.z * 2.2, e * 5.0) + 3.7);
+  return vec3(0.70, 0.76, 0.84) * (0.82 + 0.3 * e) * (0.6 + 0.8 * cloud);
+}
+// 木立の輪郭の高さ [m]。x は層の中での横の位置 [m]。樹冠の高さは 11〜16 m で、細い梢が 1〜2 m 突き出る
+float treeH(int layer, float x) {
+  float o = float(layer) * 53.0;
+  float canopy = 11.0 + 5.0 * fbm(vec2(x * 0.11 + o, 1.5)) + float(layer) * 1.5;
+  float u = x / 2.6 + o;
+  float c = floor(u);
+  float r = h21(vec2(c, 3.0 + float(layer)));
+  float tip = step(0.35, r) * (0.4 + 1.8 * r) * max(0.0, 1.0 - abs(u - c - 0.3 - 0.4 * r) * (3.0 + 3.0 * r));
+  return canopy + tip + 0.5 * vnoise(vec2(x * 2.3 + o, 0.0)) + 0.25 * vnoise(vec2(x * 7.0 + o, 3.0));
+}
+// 地面より上へ向かう視線が見るもの。oh は視線の出発点の高さ [m]
+vec3 upRay(float oh, vec3 d, float zLimit) {
+  if (d.z > 0.001) {
+    float sx = d.x / d.z, sy = d.y / d.z;
+    float len = length(vec3(sx, sy, 1.0));
+    for (int i = 0; i < 3; i++) {
+      float dz = LAYER_D[i];
+      if (dz > zLimit) break;
+      float hgt = oh + sy * dz;
+      float x = sx * dz;
+      float th = treeH(i, x);
+      if (hgt < th) {
+        float n = fbm(vec2(x * 0.42, hgt * 0.42) + float(i) * 11.0);
+        // 幹のすき間: 高さ 5 m より下は、縦に長い暗い帯が入る
+        float trunk = mix(0.35 + 0.9 * vnoise(vec2(x * 1.7 + float(i) * 5.0, hgt * 0.12)), 1.0, smoothstep(2.0, 6.0, hgt));
+        // 葉は上から照らされるので、樹冠の上ほど少し明るい
+        vec3 leaf = vec3(0.030, 0.050, 0.034) * (0.35 + 1.3 * n * n * 2.0) * trunk * (0.4 + 0.6 * smoothstep(0.0, th, hgt));
+        // 輪郭の 0.25 m は、葉のすき間から空が透ける
+        float gap = smoothstep(th - 0.25, th, hgt) * 0.6;
+        return mix(fog(leaf, dz * len), fog(skyRad(d), 2500.0), gap);
+      }
+    }
+  }
+  return fog(skyRad(d), 2500.0);
+}
+float puddle(vec2 p) {
+  float n = fbm(p * 0.55 + 4.2) + 0.25 * vnoise(p * 2.3);
+  return smoothstep(0.685, 0.715, n);
+}
+float fresnel(float c) { return 0.02 + 0.98 * pow(1.0 - clamp(c, 0.0, 1.0), 5.0); }
+// 水面の法線 n を持つ点 P（カメラは原点）の明るさ
+vec3 waterRad(vec3 P, vec3 n) {
+  vec3 V = normalize(P);
+  vec3 R = reflect(V, n);
+  R.y = max(R.y, 0.004);
+  float F = fresnel(dot(-V, n));
+  return F * upRay(0.0, R, 1e9) + (1.0 - F) * vec3(0.012, 0.011, 0.009);
+}
+`;
+
+  const VS_FULL = `#version 300 es
+in vec2 aPos; out vec2 vNdc;
+void main() { vNdc = aPos; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+  const FS_BG = COMMON + `
+uniform sampler2D uSlope;
+uniform float uRough;     // 1 つずつ描かない小さい粒による、水面の傾きのばらつき
+in vec2 vNdc; out vec4 o;
+void main() {
+  vec3 d = vec3(vNdc.x * uTx, uTyc + vNdc.y * uTy, 1.0);
+  float zg = d.y < -1e-4 ? uHc / -d.y : 1e9;
+  vec3 col;
+  bool hit = false;
+  // 地面に届く前に木立があれば、木立が見える
+  for (int i = 0; i < 3; i++) {
+    float dz = LAYER_D[i];
+    if (dz >= zg) break;
+    float hgt = uHc + d.y * dz;
+    if (hgt < treeH(i, d.x * dz)) { hit = true; break; }
+  }
+  if (hit || zg > 1e8) {
+    col = upRay(uHc, d, zg);
+  } else {
+    vec3 P = vec3(d.x * zg, -uHc, zg);
+    float m = puddle(P.xz);
+    vec3 V = normalize(P);
+    float F = fresnel(-V.y);
+    vec3 R = vec3(V.x, max(-V.y, 0.004), V.z);
+    vec3 refl = upRay(0.0, R, 1e9);
+    // 濡れた土: 暗い地の色に、表面の水の膜の鈍い反射が乗る
+    // 細かい模様は、遠くでは 1 px より細かくなるので消す
+    float g = mix(fbm(P.xz * 3.0), fbm(P.xz * 17.0), 0.4 * exp(-zg / 6.0));
+    vec3 soil = vec3(0.030, 0.024, 0.018) * (0.5 + 1.1 * g) + F * refl * 0.22 * (0.4 + 0.8 * fbm(P.xz * 6.0 + 2.0));
+    vec2 sl = texture(uSlope, gl_FragCoord.xy / uRes).rg;
+    // 小さい粒の波: 波長 1〜3 cm の乱れが 0.1 秒ほどで入れ替わる
+    // 1 px が波長より大きい遠くでは平均されるので、距離で弱める
+    vec2 q1 = P.xz * 38.0 + uTime * vec2(2.1, -1.7), q2 = P.xz * 71.0 - uTime * vec2(2.9, 2.3);
+    float px = zg * zg / (uHc * uRes.y * 0.5 / uTy);          // 1 px が地面の奥行き方向に覆う長さ [m]
+    float seen = exp(-pow(px * 60.0, 2.0));
+    sl += uRough * seen * (vec2(vnoise(q1) - 0.5, vnoise(q1 + 31.7) - 0.5) + vec2(vnoise(q2) - 0.5, vnoise(q2 + 17.3) - 0.5));
+    vec3 water = waterRad(P, normalize(vec3(-sl.x, 1.0, -sl.y)));
+    col = fog(mix(soil, water, m), length(P));
+  }
+  o = vec4(col, 1.0);
+}`;
+
+  // ---- 粒 1 個の状態（位置、直径、速さ、今の周期）を、番号と時刻だけから決める ----
+  const DROP = `
+uniform float uTheta;    // 1 本ずつ描く見かけの太さの下限 [mm/m]
+uniform float uLambda;   // Marshall–Palmer の Λ [1/mm]
+uniform float uExp;      // 露光時間 [s]
+uniform float uZn, uZf;
+struct Drop { float z, D, v, L, yTop, H, s; int n; uint id; float ok; };
+Drop dropOf(int idx) {
+  Drop q;
+  q.id = uint(idx);
+  uint b = q.id * 8u;
+  // 奥行き: 体積（z² に比例）× その距離で θ·z より大きい粒の割合（exp(−Λθz)）。3 つの指数乱数の和で引く
+  float g = -log(rnd(b)) - log(rnd(b + 1u)) - log(rnd(b + 2u));
+  q.z = g / (uLambda * uTheta);
+  // 直径: θ·z より大きい側の指数分布。6 mm より大きい粒は割れるので、6 mm で打ち切る
+  q.D = clamp(uTheta * q.z - log(rnd(b + 3u)) / uLambda, 0.2, 6.0);
+  q.v = 9.65 - 10.3 * exp(-0.6 * q.D);
+  q.L = q.v * uExp;
+  q.yTop = q.z * (uTyc + uTy);
+  q.H = q.z * 2.0 * uTy + q.L;
+  float travel = q.v * uTime + rnd(b + 4u) * q.H;
+  float nf = floor(travel / q.H);
+  q.n = int(nf);
+  q.s = travel - nf * q.H;
+  q.ok = step(uZn, q.z) * step(q.z, uZf);
+  return q;
+}
+// 周期ごとに横の位置を引き直す。同じ場所に続けて落ちない
+float dropX(Drop q, int n) {
+  return (rnd(pcg(q.id * 8u + 5u) + uint(n) * 2654435761u) * 2.0 - 1.0) * q.z * uTx * 1.04;
+}
+`;
+
+  const VS_STREAK = COMMON + DROP + `
+in vec2 aPos;
+out float vAlpha; out float vU; out float vW;
+void main() {
+  Drop q = dropOf(gl_InstanceID);
+  float x = dropX(q, q.n);
+  float yHead = q.yTop - q.s;
+  float yTail = yHead + q.L;
+  float yLo = max(yHead, -uHc);
+  float fpx = uRes.y * 0.5 / uTy;                 // 1 m 先の 1 m が何 px か
+  float wpx = q.D * 1e-3 / q.z * fpx;             // 見かけの太さ [px]
+  float half_px = max(wpx, 1.0) * 0.5 + 0.5;
+  float y = mix(yLo, yTail, aPos.y * 0.5 + 0.5);
+  vec2 ndc = vec2(x / (q.z * uTx), (y / q.z - uTyc) / uTy);
+  ndc.x += aPos.x * half_px * 2.0 / uRes.x;
+  // 濃さ = 粒が 1 点を覆う時間の割合 τ/T × 1 px に満たない太さの分 × 途中の雨とかすみによる減衰
+  float a = clamp(q.D * 1e-3 / (q.v * uExp), 0.0, 1.0) * min(wpx, 1.0) * exp(-uBeta * q.z);
+  vAlpha = a * q.ok * step(-uHc, yTail);
+  vU = aPos.x * half_px; vW = max(wpx, 1.0) * 0.5;
+  gl_Position = vec4(ndc, 0.0, 1.0);
+}`;
+  const FS_STREAK = `#version 300 es
+precision highp float;
+in float vAlpha; in float vU; in float vW; out vec4 o;
+void main() {
+  float edge = clamp(vW + 0.5 - abs(vU), 0.0, 1.0);
+  // 粒が映す周囲の明るさ。空の明るさの約 0.9 倍
+  o = vec4(vec3(0.66, 0.72, 0.80), vAlpha * edge);
+}`;
+
+  // 着地: 番号 idx の粒が最後に地面に届いてからの時間 tau と、その場所
+  const LAND = `
+const float C_RING = 0.23;      // 輪が広がる速さ [m/s]
+const float LAM = 0.017;        // 波長 [m]
+bool landing(Drop q, out float tau, out vec3 P, out float period) {
+  float sg = q.yTop + uHc;       // 筋の先が地面に届くまでに落ちる距離
+  period = q.H / q.v;
+  if (sg >= q.H || q.ok < 0.5) return false;
+  int n = q.n;
+  float ds = q.s - sg;
+  if (ds < 0.0) { ds += q.H; n -= 1; }
+  tau = ds / q.v;
+  P = vec3(dropX(q, n), -uHc, q.z);
+  return true;
+}
+`;
+  const VS_RIPPLE = COMMON + DROP + LAND + `
+in vec2 aPos;
+uniform float uRingD;
+out vec2 vOff; out vec3 vC; out float vTau; out float vD; out float vFade;
+void main() {
+  Drop q = dropOf(gl_InstanceID);
+  float tau, period; vec3 P;
+  // 輪を 1 つずつ描くのは uRingD より大きい粒だけ。小さい粒の波は、水面の細かい荒れ（FS_BG の rough）にまとめる
+  bool ok = landing(q, tau, P, period) && q.D > uRingD;
+  float life = min(period, 1.6);
+  if (!ok || tau > life || puddle(P.xz) < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  float R = C_RING * tau + 1.5 * LAM;
+  vOff = aPos * R; vC = P; vTau = tau; vD = q.D * 1e-3;
+  vFade = 1.0 - smoothstep(0.7 * life, life, tau);
+  vec3 W = P + vec3(vOff.x, 0.0, vOff.y);
+  W.z = max(W.z, 0.05);
+  gl_Position = vec4(W.x / (W.z * uTx), (W.y / W.z - uTyc) / uTy, 0.0, 1.0);
+}`;
+  // 波紋は、水面の傾き（x と z の 2 成分）として別のテクスチャに足し合わせる。波は重ね合わせが成り立つので、傾きの和は正しい
+  const FS_RIPPLE = `#version 300 es
+precision highp float;
+const float C_RING = 0.23;
+const float LAM = 0.017;
+in vec2 vOff; in vec3 vC; in float vTau; in float vD; in float vFade; out vec4 o;
+void main() {
+  float r = length(vOff);
+  float k = 6.2832 / LAM;
+  float front = C_RING * vTau;
+  // 輪は 3 本ほどの束。先頭の少し後ろが最も高い
+  float w = exp(-pow((r - front + 1.2 * LAM) / (1.5 * LAM), 2.0));
+  if (w < 0.02) discard;
+  // 振幅: 最初は 0.7·D。広がるにつれて 1/√r、粘性で exp(−0.27·t) だけ小さくなる
+  float A = 0.7 * vD * sqrt(vD / max(r, vD)) * exp(-0.27 * vTau);
+  // 1 px が波長より大きい遠くでは、波は平均されて見えなくなる
+  float fw = fwidth(r);
+  float seen = exp(-0.5 * pow(k * fw * 0.3, 2.0));
+  float slope = -A * k * sin(k * (r - front)) * w * vFade * seen;
+  o = vec4(slope * vOff / max(r, 1e-5), 0.0, 0.0);
+}`;
+
+  const VS_SPLASH = COMMON + DROP + LAND + `
+in vec2 aPos;
+out float vAlpha; out vec2 vQ;
+void main() {
+  int idx = gl_InstanceID / 3;
+  uint k = uint(gl_InstanceID - idx * 3);
+  Drop q = dropOf(idx);
+  float tau, period; vec3 P;
+  bool ok = landing(q, tau, P, period) && q.D > 0.8;
+  uint b = pcg(q.id * 8u + 6u) + uint(q.n) * 97u + k * 131u;
+  float vy = 0.7 + 0.9 * rnd(b);
+  float vh = 0.3 + 0.6 * rnd(b + 1u);
+  float ang = 6.2832 * rnd(b + 2u);
+  float fly = 2.0 * vy / 9.8;
+  if (!ok || tau > fly) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  vec3 W = P + vec3(cos(ang) * vh * tau, vy * tau - 4.9 * tau * tau, sin(ang) * vh * tau);
+  W.z = max(W.z, 0.05);
+  float fpx = uRes.y * 0.5 / uTy;
+  float dpx = 0.3 * q.D * 1e-3 / W.z * fpx;
+  float size = max(dpx, 1.0);
+  // 露光の間に動く距離ぶん、明るさが薄まる
+  float smear = max(1.0, length(vec2(vh, vy - 9.8 * tau)) * uExp / W.z * fpx / size);
+  vAlpha = min(dpx, 1.0) * min(dpx, 1.0) / smear * exp(-uBeta * W.z);
+  vQ = aPos;
+  vec2 ndc = vec2(W.x / (W.z * uTx), (W.y / W.z - uTyc) / uTy);
+  gl_Position = vec4(ndc + aPos * (size * 0.5 + 0.5) * 2.0 / uRes, 0.0, 1.0);
+}`;
+  const FS_SPLASH = `#version 300 es
+precision highp float;
+in float vAlpha; in vec2 vQ; out vec4 o;
+void main() {
+  float d = clamp(1.3 - length(vQ) * 1.3, 0.0, 1.0);
+  o = vec4(vec3(0.66, 0.72, 0.80), vAlpha * d);
+}`;
+
+  const FS_OUT = `#version 300 es
+precision highp float;
+uniform sampler2D uTex; uniform float uTime;
+in vec2 vNdc; out vec4 o;
+float h(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main() {
+  vec3 c = max(texture(uTex, vNdc * 0.5 + 0.5).rgb, 0.0) * 0.9;
+  c = c / (1.0 + c);                       // 階調の圧縮
+  c = pow(c, vec3(1.0 / 2.2));
+  float n = h(gl_FragCoord.xy + fract(uTime) * 61.0) + h(gl_FragCoord.yx + 13.0 + fract(uTime) * 37.0) - 1.0;
+  o = vec4(c + n / 255.0, 1.0);           // 縞を防ぐノイズ
+}`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + "\n" + src.split("\n").map((l, i) => (i + 1) + ": " + l).join("\n"));
+    return s;
+  }
+  function program(vs, fs) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+    gl.bindAttribLocation(p, 0, "aPos");
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) { const info = gl.getActiveUniform(p, i); u[info.name] = gl.getUniformLocation(p, info.name); }
+    return { p, u };
+  }
+  const pBg = program(VS_FULL, FS_BG);
+  const pStreak = program(VS_STREAK, FS_STREAK);
+  const pRipple = program(VS_RIPPLE, FS_RIPPLE);
+  const pSplash = program(VS_SPLASH, FS_SPLASH);
+  const pOut = program(VS_FULL, FS_OUT);
+
+  const quad = gl.createVertexArray();
+  gl.bindVertexArray(quad);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  const tex = gl.createTexture();
+  const fbo = gl.createFramebuffer();
+  const slopeTex = gl.createTexture();
+  const slopeFbo = gl.createFramebuffer();
+  let W = 0, H = 0;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+    if (w === W && h === H) return;
+    W = w; H = h; canvas.width = W; canvas.height = H;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, W, H, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindTexture(gl.TEXTURE_2D, slopeTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, W, H, 0, gl.RG, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, slopeFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, slopeTex, 0);
+  }
+
+  // ---- 降水量から決まる量 ----
+  const N0 = 8000, TY = Math.tan((21 * Math.PI) / 180), TYC = -0.16, HC = 1.1, ZN = 0.35, ZF = 80, MIST = 0.0005;
+  const el = (id) => document.getElementById(id);
+  const state = { R: 5, T: 1 / 60, cap: 80000 };
+  let derived = {};
+  function derive() {
+    const { R, cap } = state;
+    const lambda = 4.1 * R ** -0.21;                        // [1/mm]
+    const nT = N0 / lambda;                                  // 粒の数 [1/m³]
+    const tx = TY * (W / H || 1.6);
+    const area = 2 * tx * 2 * TY;                            // 1 m 先の視野の面積 [m²]
+    // 視野の中の、見かけの太さが θ より大きい粒の数 = (N0/Λ)·area·2/(Λθ)³。これが上限と等しくなる θ を解く
+    let theta = Math.cbrt((2 * area * N0) / (lambda * cap)) / lambda;   // [mm/m]
+    const thetaMin = 0.04;                                   // これより細い粒は 1 px の 1/20 に満たないので描かない
+    let count = cap;
+    if (theta < thetaMin) { theta = thetaMin; count = Math.round(((N0 / lambda) * area * 2) / (lambda * theta) ** 3); }
+    const betaRain = (Math.PI * N0) / lambda ** 3 * 1e-6;    // [1/m]
+    // 輪を 1 つずつ描く粒の下限。1 m² に 1 秒あたり約 120 個までに抑える（それより多いと輪が重なって見分けられない）
+    const flux = (d) => (N0 / lambda) * Math.exp(-lambda * d) * (9.65 - 10.3 * Math.exp(-0.6 * d));
+    let ringD = 0.6;
+    while (flux(ringD) > 120 && ringD < 5) ringD += 0.05;
+    // 小さい粒による水面の荒れ。傾きのばらつきは、1 秒に落ちる粒の数の平方根に比例するとした（仮定）
+    const rough = 0.03 * Math.sqrt(flux(0.3) / 1500);
+    derived = { lambda, nT, tx, theta, count, betaRain, beta: betaRain + MIST, ringD, rough };
+    const v = (d) => 9.65 - 10.3 * Math.exp(-0.6 * d);
+    el("iN").textContent = Math.round(nT).toLocaleString() + " 個";
+    el("iD").textContent = (Math.LN2 / lambda).toFixed(2) + " mm / " + (3.67 / lambda).toFixed(2) + " mm";
+    el("iV").textContent = v(1).toFixed(1) + " m/s / " + v(3).toFixed(1) + " m/s";
+    el("iT").textContent = theta.toFixed(3) + " mm/m（" + count.toLocaleString() + " 本）";
+    el("iB").textContent = (3.912 / betaRain / 1000).toFixed(1) + " km";
+  }
+  function readUi() {
+    state.R = 0.5 * 100 ** Number(el("rate").value);         // 0.5〜50 mm/h を対数で
+    state.T = 1 / (500 * (15 / 500) ** Number(el("exp").value)); // 1/500〜1/15 秒を対数で
+    state.cap = Number(el("cap").value);
+    el("rateOut").textContent = state.R.toFixed(state.R < 10 ? 1 : 0) + " mm/h";
+    el("expOut").textContent = "1/" + Math.round(1 / state.T) + " 秒";
+    el("capOut").textContent = state.cap.toLocaleString();
+    derive();
+  }
+  for (const id of ["rate", "exp", "cap"]) el(id).addEventListener("input", readUi);
+  el("toggle").addEventListener("click", () => {
+    const closed = el("panel").classList.toggle("closed");
+    el("toggle").textContent = closed ? "開く" : "閉じる";
+    el("toggle").setAttribute("aria-expanded", String(!closed));
+  });
+  // 確かめるための入口: ?r=25&t=60&cap=80000&ui=0
+  const params = new URLSearchParams(location.search);
+  if (params.has("r")) el("rate").value = String(Math.log(Number(params.get("r")) / 0.5) / Math.log(100));
+  if (params.has("t")) el("exp").value = String(Math.log(500 / Number(params.get("t"))) / Math.log(500 / 15));
+  if (params.has("cap")) el("cap").value = params.get("cap");
+  const skip = (params.get("skip") || "").split(",");
+  if (params.get("ui") === "0") el("panel").style.display = "none";
+
+  function setCommon(prog, time) {
+    gl.useProgram(prog.p);
+    const u = prog.u;
+    gl.uniform2f(u.uRes, W, H);
+    gl.uniform1f(u.uTx, derived.tx); gl.uniform1f(u.uTy, TY); gl.uniform1f(u.uTyc, TYC); gl.uniform1f(u.uHc, HC);
+    gl.uniform1f(u.uBeta, derived.beta); gl.uniform1f(u.uTime, time);
+    if (u.uTheta) gl.uniform1f(u.uTheta, derived.theta);
+    if (u.uLambda) gl.uniform1f(u.uLambda, derived.lambda);
+    if (u.uExp) gl.uniform1f(u.uExp, state.T);
+    if (u.uZn) gl.uniform1f(u.uZn, ZN);
+    if (u.uZf) gl.uniform1f(u.uZf, ZF);
+  }
+
+  let last = 0, time = 0, frames = [], query = null, gpuMs = null;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function frame(t) {
+    resize();
+    if (!derived.tx || Math.abs(derived.tx - TY * (W / H)) > 1e-6) derive();
+    const dt = Math.min(0.1, (t - last) / 1000 || 0.016);
+    if (last) { frames.push(t - last); if (frames.length > 30) frames.shift(); }
+    last = t;
+    if (!reduce) time += dt;
+
+    let q = null;
+    if (timerExt && !query) { q = gl.createQuery(); gl.beginQuery(timerExt.TIME_ELAPSED_EXT, q); }
+
+    gl.viewport(0, 0, W, H);
+    gl.bindVertexArray(quad);
+    // 1. 波紋の傾きを足し合わせる
+    gl.bindFramebuffer(gl.FRAMEBUFFER, slopeFbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    if (!skip.includes("ripple")) {
+      gl.blendFunc(gl.ONE, gl.ONE);
+      setCommon(pRipple, time);
+      gl.uniform1f(pRipple.u.uRingD, derived.ringD);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, derived.count);
+    }
+    // 2. 背景と地面。水たまりは 1 の傾きで空と木立を映す
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.disable(gl.BLEND);
+    setCommon(pBg, time);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, slopeTex);
+    gl.uniform1i(pBg.u.uSlope, 0);
+    gl.uniform1f(pBg.u.uRough, derived.rough);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    if (!skip.includes("splash")) {
+      setCommon(pSplash, time);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, derived.count * 3);
+    }
+    if (!skip.includes("streak")) {
+      setCommon(pStreak, time);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, derived.count);
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.BLEND);
+    gl.useProgram(pOut.p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(pOut.u.uTex, 0);
+    gl.uniform1f(pOut.u.uTime, time);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    if (q) { gl.endQuery(timerExt.TIME_ELAPSED_EXT); query = q; }
+    else if (query && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) {
+      if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) gpuMs = gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6;
+      gl.deleteQuery(query); query = null;
+    }
+    if (frames.length && Math.round(t / 250) !== Math.round((t - frames[frames.length - 1]) / 250)) {
+      const avg = frames.reduce((a, b) => a + b, 0) / frames.length;
+      el("iF").textContent = avg.toFixed(1) + " ms";
+      el("iG").textContent = gpuMs === null ? "測れない" : gpuMs.toFixed(2) + " ms";
+      window.__stats = { frameMs: avg, gpuMs, count: derived.count, theta: derived.theta };
+    }
+    requestAnimationFrame(frame);
+  }
+  resize();
+  readUi();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

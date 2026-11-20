@@ -2,20 +2,22 @@ import { useRender } from "@base-ui/react/use-render";
 import { ArrowRight } from "lucide-react";
 import type * as React from "react";
 import { cn } from "../lib/cn";
+import { trackWarmth } from "../lib/warmth";
 
 /*
- * 持ち上がり: hover で 2px 上がり、枠線にブランドカラーが混ざって、外側に薄い光の影が付く。押すと 0.98 倍に沈み、離すとばねで戻る。
+ * 持ち上がり: hover で 2px 上がり、枠線にブランドカラーが混ざって、外側に薄い光の影が付く。押すと 0.98 倍に沈み、離すと載る曲線で戻る。
  * 動きは translate と scale に分けて持つので、持ち上がったまま押し込める。
- * 持ち上げと戻りは soft のばね、押し込みだけは速い減速にする。
+ * 持ち上げと戻りは着火の曲線、押し込みから戻る大きさは載る曲線、押し込みだけは速い減速にする。
+ * 手元の光: hover の間、ポインターの位置を中心に半径 220px の淡い光が面に乗る。離れると 560ms かけて消える。
  */
 const lift = [
 	"group/card relative flex flex-col gap-2 rounded-lg border border-line-subtle bg-surface-raised p-5 text-left text-fg shadow-[var(--shadow-card)]",
-	"cursor-pointer outline-none select-none",
+	"cursor-pointer outline-none select-none motion-warmth",
 	"[--card-rim:color-mix(in_oklab,var(--color-brand)_32%,var(--color-line-subtle))]",
 	"[--card-glow:0_0_0_1px_color-mix(in_oklab,var(--color-brand)_14%,transparent),0_10px_32px_-6px_color-mix(in_oklab,var(--color-brand)_24%,transparent)]",
-	"[transition:translate_var(--duration-spring-soft)_var(--ease-spring-soft),scale_var(--duration-spring-press)_var(--ease-spring-press),box-shadow_var(--duration-base)_var(--ease-ember),border-color_var(--duration-base)_var(--ease-ember),background-color_var(--duration-fast)_var(--ease-standard)]",
+	"[transition:translate_var(--duration-ignite)_var(--ease-ignite),scale_var(--duration-land)_var(--ease-land),box-shadow_var(--duration-base)_var(--ease-ember),border-color_var(--duration-base)_var(--ease-ember),background-color_var(--duration-fast)_var(--ease-standard)]",
 	"hover:-translate-y-0.5 hover:border-(--card-rim) hover:shadow-[var(--shadow-card),var(--card-glow)]",
-	"active:scale-(--press-scale-surface) active:[transition:translate_var(--duration-spring-soft)_var(--ease-spring-soft),scale_150ms_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-ember),border-color_var(--duration-base)_var(--ease-ember)]",
+	"active:scale-(--press-scale-surface) active:[transition:translate_var(--duration-ignite)_var(--ease-ignite),scale_150ms_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-ember),border-color_var(--duration-base)_var(--ease-ember)]",
 	"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
 	"aria-disabled:pointer-events-none aria-disabled:opacity-50",
 ];
@@ -29,7 +31,14 @@ export type InteractiveCardProps = useRender.ComponentProps<"button"> & {
  * カード全体を押せるようにする。記事や記録の一覧から、詳しいページへ移るときに使う。
  * 中にほかのボタンやリンクは置かない（押せる場所が重なるため）。中に操作が要るなら Card を使う。
  */
-export function InteractiveCard({ href, className, render, ref, ...props }: InteractiveCardProps) {
+export function InteractiveCard({
+	href,
+	className,
+	render,
+	ref,
+	onPointerMove,
+	...props
+}: InteractiveCardProps) {
 	return useRender({
 		defaultTagName: href ? "a" : "button",
 		render,
@@ -38,6 +47,10 @@ export function InteractiveCard({ href, className, render, ref, ...props }: Inte
 			"data-slot": "interactive-card",
 			...(href ? { href } : { type: "button" }),
 			...props,
+			onPointerMove: (event: React.PointerEvent<HTMLButtonElement>) => {
+				trackWarmth(event);
+				onPointerMove?.(event);
+			},
 			className: cn(lift, className),
 		},
 	});
@@ -67,7 +80,7 @@ export function InteractiveCardDescription({ className, ...props }: React.Compon
 }
 
 /**
- * 進む向きを示す矢印。カードに hover すると、ばねで 3px 前へ寄り、ブランドカラーになる。
+ * 進む向きを示す矢印。カードに hover すると、はぜる曲線で 3px 前へ寄り、ブランドカラーになる。
  * 押している間は、もう 1px 先へ出る。
  */
 export function InteractiveCardArrow({ className, ...props }: React.ComponentProps<typeof ArrowRight>) {
@@ -77,7 +90,7 @@ export function InteractiveCardArrow({ className, ...props }: React.ComponentPro
 			aria-hidden
 			className={cn(
 				"size-4 shrink-0 text-fg-subtle",
-				"transition-[translate,color] duration-(--duration-spring-snappy) ease-spring-snappy",
+				"transition-[translate,color] duration-(--duration-pop) ease-pop",
 				"group-hover/card:translate-x-[3px] group-hover/card:text-brand group-active/card:translate-x-1",
 				className,
 			)}

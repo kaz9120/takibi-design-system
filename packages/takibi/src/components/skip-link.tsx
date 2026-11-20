@@ -21,11 +21,11 @@ export function SkipLink({ className, render, ref, href = "#main", children, ...
 			className: cn(
 				"fixed top-3 left-3 z-[100] inline-flex h-10 items-center gap-2 rounded-md border border-line bg-surface-overlay px-4",
 				"text-sm font-medium text-fg-strong shadow-pop outline-none",
-				// 隠れている間は左上の外に置く。出るときはばねで、消えるときは 150ms で速く
+				// 隠れている間は左上の外に置く。出るときは着火の曲線で、消えるときは 150ms で速く
 				"pointer-events-none -translate-x-3 -translate-y-[calc(100%+1.5rem)] opacity-0",
 				"transition-[translate,opacity] duration-150 ease-out-expo",
 				"focus:pointer-events-auto focus:translate-x-0 focus:translate-y-0 focus:opacity-100",
-				"focus:duration-(--duration-spring-soft) focus:ease-spring-soft",
+				"focus:duration-(--duration-ignite) focus:ease-ignite",
 				"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
 				className,
 			),

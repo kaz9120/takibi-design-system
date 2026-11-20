@@ -81,7 +81,7 @@ export function NavigationMenuTrigger({
 					"inline-flex text-fg-subtle",
 					"transition-[rotate,color] duration-150 ease-out-expo",
 					"data-popup-open:rotate-180 data-popup-open:text-fg-muted",
-					"data-popup-open:duration-(--duration-spring-snappy) data-popup-open:ease-spring-snappy",
+					"data-popup-open:duration-(--duration-pop) data-popup-open:ease-pop",
 				)}
 			>
 				<ChevronDown className="size-3.5" />
@@ -100,7 +100,7 @@ export function NavigationMenuContent({
 			data-slot="navigation-menu-content"
 			className={cn(
 				"h-full w-[calc(100vw-2rem)] p-2 sm:w-max",
-				"transition-[opacity,translate,filter] duration-(--duration-spring-glide) ease-spring-glide",
+				"transition-[opacity,translate,filter] duration-(--duration-sway) ease-sway",
 				"data-starting-style:opacity-0 data-ending-style:opacity-0",
 				"data-ending-style:blur-[2px] data-ending-style:duration-150 data-ending-style:ease-out-expo",
 				"data-starting-style:data-[activation-direction=left]:-translate-x-1/4",
@@ -177,7 +177,7 @@ export function NavigationMenuCard({
 
 /**
  * パネルの入れ物。NavigationMenu が中に 1 つ置くので、アプリ側で置く必要はない。
- * パネルの幅と高さ、位置は、Base UI が出す大きさの変数をばねで追う。
+ * パネルの幅と高さ、位置は、Base UI が出す大きさの変数を揺れる曲線で追う。
  */
 function NavigationMenuViewport() {
 	return (
@@ -189,7 +189,7 @@ function NavigationMenuViewport() {
 				collisionAvoidance={{ side: "none" }}
 				className={cn(
 					"z-50 h-(--positioner-height) w-(--positioner-width) max-w-(--available-width)",
-					"transition-[top,left,right,bottom] duration-(--duration-spring-glide) ease-spring-glide data-instant:transition-none",
+					"transition-[top,left,right,bottom] duration-(--duration-sway) ease-sway data-instant:transition-none",
 					// パネルとの隙間でも hover が切れないよう、透明の帯を足す
 					"before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-['']",
 				)}
@@ -199,7 +199,7 @@ function NavigationMenuViewport() {
 					className={cn(
 						"relative h-(--popup-height) w-(--popup-width) origin-(--transform-origin) overflow-hidden",
 						"rounded-lg border border-line bg-surface-overlay text-fg shadow-pop outline-none",
-						"transition-[opacity,scale,width,height] duration-(--duration-spring-glide) ease-spring-glide",
+						"transition-[opacity,scale,width,height] duration-(--duration-sway) ease-sway",
 						"data-starting-style:scale-[0.96] data-starting-style:opacity-0",
 						"data-ending-style:scale-[0.96] data-ending-style:opacity-0 data-ending-style:duration-150 data-ending-style:ease-out-expo",
 					)}

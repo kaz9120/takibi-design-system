@@ -32,8 +32,8 @@ const meta = {
 				"見出しは h3 で包むので、見出しの一覧からもたどれる",
 			],
 			motion: [
-				"中身は高さ 0 から伸びながら現れ、閉じるときも同じ曲線で縮む（motion-fold、spring-glide の 330ms）",
-				"見出しの矢印は、開くと 180 度回って上を向く（spring-press の 460ms）",
+				"中身は高さ 0 から伸びながら現れ、閉じるときも同じ曲線で縮む（motion-fold、ease-sway の 330ms）",
+				"見出しの矢印は、開くと 180 度回って上を向く（ease-sway の 330ms）",
 			],
 			related: ["データ表示/Collapsible", "データ表示/Tabs"],
 		} satisfies ComponentDocs,

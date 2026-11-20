@@ -40,7 +40,7 @@ const meta = {
 			a11y: ["オンかオフかは aria-pressed で読み上げられる", "オンの状態は、色に加えて背景の面でも示す"],
 			motion: [
 				"オンにすると、背景がブランドカラーの薄い色に、文字がブランドカラーに変わる",
-				"押すと 0.97 倍に沈み、離すとばね（spring-press）で戻る（motion-press）",
+				"押すと 0.97 倍に沈み、離すと載る曲線（ease-land）で戻る（motion-press）",
 			],
 			related: ["アクション/ToggleGroup", "アクション/Toolbar", "アクション/Button", "フォーム/Switch"],
 		} satisfies ComponentDocs,

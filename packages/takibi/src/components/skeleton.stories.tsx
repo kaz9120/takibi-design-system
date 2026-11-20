@@ -23,7 +23,7 @@ const meta = {
 			],
 			a11y: ["Skeleton は aria-hidden なので読み上げない。待っていることは aria-busy などで伝える"],
 			motion: [
-				"ブランドカラーを薄く混ぜた帯が、1.8 秒で左から右へ流れ続ける（motion-ember-pulse、ease-breath）",
+				"ブランドカラーを薄く混ぜた 2 本の帯が流れ続ける。濃い帯は 2.9 秒で右から左へ、薄い帯は 4.7 秒で左から右へ動く（motion-ember-pulse）",
 				"動きを減らす設定では、帯は流れない",
 			],
 			related: ["データ表示/Image", "フィードバック/Progress", "フィードバック/EmptyState"],
@@ -34,7 +34,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** ブランドカラーを薄く混ぜた帯が、1.8 秒で左から右へ流れる */
+/** ブランドカラーを薄く混ぜた 2 本の帯が、2.9 秒と 4.7 秒の周期で逆向きに流れる */
 export const Basic: Story = {
 	name: "基本",
 	args: { className: "h-4 w-64" },

@@ -51,8 +51,8 @@ const meta = {
 				"閉じると、トリガーにフォーカスが戻る",
 			],
 			motion: [
-				"一覧は、トリガーから 4px 離れた 0.94 倍の大きさから、ばね（spring-soft）で現れる（motion-rise）",
-				"選択肢の間を移ると、背景の帯がばね（spring-glide）で滑って付いてくる",
+				"一覧は、トリガーから 4px 離れた 0.94 倍の大きさから、はぜる曲線（ease-pop）で現れる（motion-rise）",
+				"選択肢の間を移ると、背景の帯が揺れる曲線（ease-sway）で滑って付いてくる",
 				"開くと、トリガーの矢印が 180° 回る",
 			],
 			related: ["フォーム/Combobox", "フォーム/RadioGroup", "フォーム/Autocomplete", "オーバーレイ/Menu"],

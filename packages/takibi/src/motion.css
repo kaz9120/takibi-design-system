@@ -7,23 +7,160 @@
    コンポーネントは下のユーティリティを className に持つ。アプリ側で
    独自の要素に使ってもよい。
    原則:
-   - 開く動きはばね（--ease-spring-*）で、閉じる動きは速い減速（--ease-out-expo）で
+   - 開く動きは焚き火から取った 4 つの曲線（--ease-pop / land / ignite / sway）で、閉じる動きは速い減速（--ease-out-expo）で
    - 動きは原因の位置（押した点、トリガー）から始める
    - 途中で逆の操作をしたら、今の位置から戻す（CSS の transition は自動でそうなる）
+   焚き火から取った決まり:
+   - 温度: 光と火の粉は、時間と距離で heat-core → flame → ember → coal → ash の順に色を変える
+   - 余熱: 光は速く出て（--duration-fast）、火の粉が冷える曲線で消える（--duration-cool、--ease-cool）
+   - ゆらぎ: 続く動きは、割り切れない 3 つの周期（--duration-flicker-*）を重ねる
+   - 浮力: 火の粉と煙は上へ向かい、横の動きは先に止まる
    ============================================================ */
 
-/* グロー: hover で、要素の周りにブランドカラーの淡い光（shadow-glow-soft）が出る */
+/* 読み込み中の面の 2 本の帯の位置。別々の周期で動かすために、補間できる値として登録する */
+@property --ember-a {
+	syntax: "<percentage>";
+	inherits: false;
+	initial-value: 100%;
+}
+@property --ember-b {
+	syntax: "<percentage>";
+	inherits: false;
+	initial-value: -50%;
+}
+
+/*
+ * 余熱: 影（光）だけ、出るときは 120ms、消えるときは 560ms にする。色は出入りとも 120ms。
+ * 消える曲線（--ease-cool）は、1500K の火の粉が冷えるときの明るさの落ち方に合わせた。0.09 秒で半分、0.27 秒で 10%、0.56 秒で 1% になる。
+ * hover で光る要素に付ける。光そのもの（shadow-glow など）は付けないので、hover のクラスで別に指定する。
+ */
+@utility motion-afterglow {
+	transition:
+		color var(--duration-fast) var(--ease-standard),
+		background-color var(--duration-fast) var(--ease-standard),
+		border-color var(--duration-fast) var(--ease-standard),
+		box-shadow var(--duration-cool) var(--ease-cool);
+	&:hover:not(:disabled, [data-disabled]) {
+		transition:
+			color var(--duration-fast) var(--ease-standard),
+			background-color var(--duration-fast) var(--ease-standard),
+			border-color var(--duration-fast) var(--ease-standard),
+			box-shadow var(--duration-fast) var(--ease-standard);
+	}
+}
+
+/* グロー: hover で、要素の周りに淡い光（shadow-glow-soft）が 220ms で出て、離れると 560ms かけて消える */
 @utility motion-glow {
 	transition-property: color, background-color, border-color, box-shadow;
-	transition-duration: var(--duration-base);
-	transition-timing-function: var(--ease-ember);
+	transition-duration: var(--duration-base), var(--duration-base), var(--duration-base), var(--duration-cool);
+	transition-timing-function: var(--ease-ember), var(--ease-ember), var(--ease-ember), var(--ease-cool);
 	&:hover:not(:disabled, [data-disabled]) {
 		box-shadow: var(--shadow-glow-soft);
+		transition-duration: var(--duration-base);
 	}
 }
 
 /*
- * 押下: 押した瞬間に速く沈み、離すとばねで弾んで戻る。
+ * 手元の光: ポインターの位置を中心に、半径 --warmth-radius（既定 220px）の淡い光が面に乗る。
+ * hover で 220ms で出て、離れると最後の位置に残ったまま 560ms かけて消える。
+ * 位置は src/lib/warmth.ts の trackWarmth を onPointerMove に渡して伝える。要素は position: relative にする。
+ */
+@utility motion-warmth {
+	&::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		pointer-events: none;
+		opacity: 0;
+		background: radial-gradient(
+			var(--warmth-radius, 220px) circle at var(--warmth-x, 50%) var(--warmth-y, 0%),
+			color-mix(in oklab, var(--color-heat-flame) 11%, transparent) 0%,
+			color-mix(in oklab, var(--color-heat-coal) 6%, transparent) 45%,
+			transparent 100%
+		);
+		transition: opacity var(--duration-cool) var(--ease-cool);
+	}
+	&:hover:not(:disabled, [data-disabled], [aria-disabled="true"])::before {
+		opacity: 1;
+		transition-duration: var(--duration-base);
+	}
+}
+
+/*
+ * ゆらぎ: 明るさ（4.7 秒に山が 4 つ）、大きさ（1.3 秒）、位置（2.9 秒）を別々の周期で動かす。3 つの周期は互いに割り切れないので、同じ形は約 30 分繰り返さない。
+ * 値は、焚き火の計算モデル（labs/fire3d、火の強さ 0.80）の炎を 30 秒測って決めた。
+ * - 明るさの揺れは 0.7〜0.9Hz が最も強く、3Hz より上はほぼない。明るくなる時間が 58%、暗くなる時間が 42%
+ * - 実測の振れ幅（標準偏差が平均の 69%）は UI には大きすぎるので、約 4.5 分の 1（±15%）に縮めた
+ * - 炎の位置は、薪の向きに ±3.3cm、奥行きに ±1.3cm 動く。炎の幅 45cm に対する割合（±7%）を同じく 4.5 分の 1 にした
+ * 炎や光の飾りの要素だけに付ける。文字や操作できる要素には付けない。
+ */
+@utility motion-flicker {
+	animation:
+		flicker-glow var(--duration-flicker-a) var(--ease-breath) infinite,
+		flicker-size var(--duration-flicker-b) var(--ease-breath) infinite,
+		flicker-sway var(--duration-flicker-c) var(--ease-breath) infinite;
+}
+
+@keyframes flicker-glow {
+	/* 4.7 秒に山が 4 つ（平均 0.85Hz）。山の間隔と高さはそろえない。どの山も、区間の 58% で上がり、42% で下がる */
+	0%,
+	100% {
+		opacity: 0.74;
+	}
+	12.8% {
+		opacity: 1;
+	}
+	22% {
+		opacity: 0.66;
+	}
+	37.7% {
+		opacity: 0.9;
+	}
+	49% {
+		opacity: 0.8;
+	}
+	61.8% {
+		opacity: 0.97;
+	}
+	71% {
+		opacity: 0.7;
+	}
+	87.8% {
+		opacity: 0.86;
+	}
+}
+
+@keyframes flicker-size {
+	/* 明るさより速い 1.3 秒の揺れ。縦に 5%、横に 2% 伸び縮みする。伸びる時間が 58%、縮む時間が 42% */
+	0%,
+	100% {
+		scale: 0.99 0.97;
+	}
+	58% {
+		scale: 1.02 1.05;
+	}
+}
+
+@keyframes flicker-sway {
+	/* 2.9 秒で横に ±1.6%、縦に ±0.6% 動く。炎の位置は横に大きく、奥行きと高さには小さく動く */
+	0%,
+	100% {
+		translate: 0 0;
+	}
+	27% {
+		translate: 1.6% -0.6%;
+	}
+	64% {
+		translate: -1.4% 0.4%;
+	}
+	83% {
+		translate: 0.5% -0.3%;
+	}
+}
+
+/*
+ * 押下: 押した瞬間に速く沈み、離すと載る曲線（--ease-land）で 12% 跳ね返ってから戻る。
  * Button は Motion で同じ動きをするので、これは独自の押せる要素に使う。
  */
 @utility motion-press {
@@ -32,7 +169,7 @@
 		background-color var(--duration-fast) var(--ease-standard),
 		border-color var(--duration-fast) var(--ease-standard),
 		box-shadow var(--duration-base) var(--ease-ember),
-		scale var(--duration-spring-press) var(--ease-spring-press);
+		scale var(--duration-land) var(--ease-land);
 	&:active:not(:disabled, [data-disabled]) {
 		scale: var(--press-scale);
 		transition:
@@ -57,7 +194,7 @@
 		background-color var(--duration-fast) var(--ease-standard),
 		border-color var(--duration-fast) var(--ease-standard),
 		box-shadow var(--duration-base) var(--ease-ember),
-		scale var(--duration-spring-press) var(--ease-spring-press);
+		scale var(--duration-land) var(--ease-land);
 	&:active:not(:disabled, [data-disabled], [data-readonly]) {
 		scale: var(--press-scale-icon);
 		transition:
@@ -75,7 +212,7 @@
  */
 @utility motion-press-glyph {
 	& svg {
-		transition: scale var(--duration-spring-press) var(--ease-spring-press);
+		transition: scale var(--duration-land) var(--ease-land);
 	}
 	&:active:not(:disabled, [data-disabled]) svg {
 		scale: var(--press-scale-glyph);
@@ -85,13 +222,13 @@
 }
 
 /*
- * 入れ替わり: 値があるときだけ出る小さなボタン（消すボタンなど）。ぼけた小ささからばねで現れ、速く消える。
+ * 入れ替わり: 値があるときだけ出る小さなボタン（消すボタンなど）。ぼけた小ささからはぜる曲線（--ease-pop）で現れ、速く消える。
  * Base UI の data-starting-style / data-ending-style を見る。Motion で同じことをするときは src/lib/motion.ts の swap を使う。
  */
 @utility motion-swap {
 	transition-property: opacity, scale, filter, color, background-color;
-	transition-duration: var(--duration-spring-snappy);
-	transition-timing-function: var(--ease-spring-snappy);
+	transition-duration: var(--duration-pop);
+	transition-timing-function: var(--ease-pop);
 	&[data-starting-style],
 	&[data-ending-style] {
 		opacity: 0;
@@ -131,13 +268,17 @@
 	}
 }
 
-/* 浮上: ツールチップ、ポップオーバー、メニューがトリガーからばねで膨らむ */
+/*
+ * 浮上: ツールチップ、ポップオーバー、メニューが、トリガーの側を起点に 0.94 倍からはぜる曲線（--ease-pop、360ms）で大きくなる。
+ * 動きの 90% は最初の 130ms ほどで終わり、行き過ぎずに止まる。小さなポップアップは動く幅が 6% しかなく、
+ * 着火の曲線の行き過ぎ（動く幅の 8%）は 1px に満たず見えないので、出だしの速いはぜる曲線にしている。
+ */
 @utility motion-rise {
 	transform-origin: var(--transform-origin);
 	transition:
 		opacity var(--duration-fast) var(--ease-standard),
-		scale var(--duration-spring-soft) var(--ease-spring-soft),
-		translate var(--duration-spring-soft) var(--ease-spring-soft);
+		scale var(--duration-pop) var(--ease-pop),
+		translate var(--duration-pop) var(--ease-pop);
 	&[data-starting-style],
 	&[data-ending-style] {
 		opacity: 0;
@@ -161,12 +302,12 @@
 	}
 }
 
-/* ダイアログ本体: ぼけた状態から 12px 上がりながらばねで開き、同じ形のまま速く閉じる */
+/* ダイアログ本体: ぼけた状態から 12px 上がりながら着火の曲線で開き、同じ形のまま速く閉じる */
 @utility motion-dialog {
 	/* 中央寄せに translate を使うコンポーネントがあるので、動きは transform で付ける */
 	transition:
 		opacity var(--duration-base) var(--ease-standard),
-		transform var(--duration-spring-soft) var(--ease-spring-soft),
+		transform var(--duration-ignite) var(--ease-ignite),
 		filter var(--duration-base) var(--ease-standard);
 	&[data-starting-style],
 	&[data-ending-style] {
@@ -200,7 +341,7 @@
 	height: var(--accordion-panel-height, var(--collapsible-panel-height));
 	overflow: hidden;
 	transition:
-		height var(--duration-spring-glide) var(--ease-spring-glide),
+		height var(--duration-sway) var(--ease-sway),
 		opacity var(--duration-base) var(--ease-standard);
 	&[data-starting-style],
 	&[data-ending-style] {
@@ -210,28 +351,30 @@
 	/* 閉じるときも、開くときと同じ曲線でたたむ。中身は少し早く薄れる */
 	&[data-ending-style] {
 		transition:
-			height var(--duration-spring-glide) var(--ease-spring-glide),
+			height var(--duration-sway) var(--ease-sway),
 			opacity var(--duration-base) var(--ease-standard);
 	}
 }
 
-/* 着地: 下からばねで現れる。新しく追加された要素 */
+/* 着地: 下から着火の曲線で現れる。新しく追加された要素 */
 @utility motion-settle {
 	transition:
 		opacity var(--duration-base) var(--ease-standard),
-		translate var(--duration-spring-soft) var(--ease-spring-soft);
+		translate var(--duration-ignite) var(--ease-ignite);
 	&[data-starting-style] {
 		opacity: 0;
 		translate: 0 12px;
 	}
-	/* 煙: 消えるときは上へ薄れる */
+	/* 煙: 消えるときは 10px 上がりながら 1.03 倍に広がり、ぼけて薄れる */
 	&[data-ending-style] {
 		opacity: 0;
 		translate: 0 -10px;
-		filter: blur(2px);
+		scale: 1.03;
+		filter: blur(3px);
 		transition:
 			opacity var(--duration-slow) var(--ease-out-expo),
 			translate var(--duration-slow) var(--ease-out-expo),
+			scale var(--duration-slow) var(--ease-out-expo),
 			filter var(--duration-slow) var(--ease-out-expo);
 	}
 }
@@ -249,7 +392,7 @@
 
 /* タブの中身: 選んだタブの側から 8px 寄りながら現れる */
 @utility motion-scene {
-	animation: scene-in var(--duration-spring-glide) var(--ease-spring-glide);
+	animation: scene-in var(--duration-sway) var(--ease-sway);
 	&[data-activation-direction="left"] {
 		--scene-from: -8px;
 	}
@@ -265,43 +408,94 @@
 	}
 }
 
-/* 読み込み中の面: ブランドカラーを薄く混ぜた帯が、1.8 秒かけて左から右へ流れる */
+/*
+ * 読み込み中の面: ブランドカラーを薄く混ぜた 2 本の帯が、別々の周期で流れる。
+ * 濃い帯は 2.9 秒で右から左へ、薄く幅の広い帯は 4.7 秒で左から右へ動き、重なった所が明るくなる。
+ * 周期は炎のゆらぎと同じ値（--duration-flicker-c / a）で、2 本がそろうのは 136 秒に 1 回。
+ */
 @utility motion-ember-pulse {
-	background-image: linear-gradient(
-		90deg,
-		var(--color-surface-overlay) 0%,
-		color-mix(in oklab, var(--color-brand) 12%, var(--color-surface-overlay)) 50%,
-		var(--color-surface-overlay) 100%
-	);
-	background-size: 200% 100%;
-	animation: var(--animate-ember-pulse);
+	background-color: var(--color-surface-overlay);
+	background-image:
+		linear-gradient(
+			90deg,
+			transparent 0%,
+			color-mix(in oklab, var(--color-heat-ember) 13%, transparent) 50%,
+			transparent 100%
+		),
+		linear-gradient(
+			90deg,
+			transparent 0%,
+			color-mix(in oklab, var(--color-heat-flame) 7%, transparent) 50%,
+			transparent 100%
+		);
+	background-size:
+		200% 100%,
+		300% 100%;
+	background-position:
+		var(--ember-a) 0,
+		var(--ember-b) 0;
+	animation:
+		ember-a var(--duration-flicker-c) var(--ease-breath) infinite,
+		ember-b var(--duration-flicker-a) linear infinite;
 }
 
-/* 完了の光: 完了の瞬間に一度だけ、ブランドカラーの光が外へ広がって消える */
+@keyframes ember-a {
+	from {
+		--ember-a: 100%;
+	}
+	to {
+		--ember-a: -100%;
+	}
+}
+
+@keyframes ember-b {
+	from {
+		--ember-b: -50%;
+	}
+	to {
+		--ember-b: 150%;
+	}
+}
+
+/*
+ * 完了の光: 完了の瞬間に一度だけ、縁から光が外へ広がって消える。
+ * 色は 900ms の間に heat-core → flame → ember → coal の順に変わり、広がるほど暗く赤くなる。
+ */
 @utility motion-flare {
 	animation: flare 900ms var(--ease-out-expo) both;
 }
 
 @keyframes flare {
 	0% {
-		box-shadow: 0 0 0 0 rgb(244 125 58 / 0.55);
-	}
-	35% {
 		box-shadow:
-			0 0 0 4px rgb(244 125 58 / 0.18),
-			0 0 28px 4px rgb(244 125 58 / 0.35);
+			0 0 0 0 color-mix(in oklab, var(--color-heat-core) 70%, transparent),
+			0 0 0 0 color-mix(in oklab, var(--color-heat-flame) 0%, transparent);
+	}
+	22% {
+		box-shadow:
+			0 0 0 3px color-mix(in oklab, var(--color-heat-flame) 32%, transparent),
+			0 0 22px 2px color-mix(in oklab, var(--color-heat-ember) 42%, transparent);
+	}
+	55% {
+		box-shadow:
+			0 0 0 7px color-mix(in oklab, var(--color-heat-ember) 10%, transparent),
+			0 0 30px 6px color-mix(in oklab, var(--color-heat-coal) 26%, transparent);
 	}
 	100% {
-		box-shadow: 0 0 0 10px rgb(244 125 58 / 0);
+		box-shadow:
+			0 0 0 10px color-mix(in oklab, var(--color-heat-coal) 0%, transparent),
+			0 0 36px 8px color-mix(in oklab, var(--color-heat-coal) 0%, transparent);
 	}
 }
 
 /*
- * はぜる: 完了の瞬間に、火の粉が数個だけ散る。
- * 火の粉の要素に --spark-x と --spark-y（飛ぶ先）と --spark-delay を持たせる。
+ * はぜる: 完了の瞬間に、火の粉が数個だけ飛ぶ。Sparks コンポーネントが使う。
+ * 横の動きは最初の 30% でほぼ止まり、縦は最後まで上がり続けるので、軌道は上へ曲がる。
+ * 色は heat-core から ash まで冷め、途中で 2 回、明るさが落ちて戻る。
+ * 火の粉の要素に --spark-x と --spark-y（飛ぶ先）を持たせる。--spark-sway（横の揺れ）、--spark-duration、--spark-delay は省ける。
  */
 @utility motion-spark {
-	animation: spark 620ms var(--ease-out-expo) var(--spark-delay, 0ms) both;
+	animation: spark var(--spark-duration, 720ms) linear var(--spark-delay, 0ms) both;
 }
 
 @keyframes spark {
@@ -309,14 +503,35 @@
 		opacity: 0;
 		translate: 0 0;
 		scale: 1;
+		background-color: var(--color-heat-core);
 	}
-	15% {
+	8% {
 		opacity: 1;
+	}
+	30% {
+		translate: calc(var(--spark-x) * 0.85) calc(var(--spark-y) * 0.42);
+		background-color: var(--color-heat-flame);
+	}
+	42% {
+		opacity: 0.5;
+	}
+	52% {
+		opacity: 1;
+		background-color: var(--color-heat-ember);
+	}
+	66% {
+		translate: calc(var(--spark-x) + var(--spark-sway, 0px)) calc(var(--spark-y) * 0.72);
+		scale: 0.8;
+	}
+	78% {
+		opacity: 0.75;
+		background-color: var(--color-heat-coal);
 	}
 	100% {
 		opacity: 0;
-		translate: var(--spark-x) var(--spark-y);
-		scale: 0.3;
+		translate: calc(var(--spark-x) * 0.92) var(--spark-y);
+		scale: 0.35;
+		background-color: var(--color-heat-ash);
 	}
 }
 
@@ -328,7 +543,7 @@
 	--ignite-row: 52px;
 	animation: ignite 560ms both;
 	&[data-ending-style] {
-		animation: smoke 200ms var(--ease-out-expo) both;
+		animation: smoke var(--duration-base) var(--ease-rise) both;
 	}
 }
 
@@ -352,7 +567,7 @@
 		background-color: var(--color-surface-overlay);
 		translate: 0 0;
 		opacity: 1;
-		animation-timing-function: var(--ease-spring-glide);
+		animation-timing-function: var(--ease-sway);
 	}
 	100% {
 		clip-path: inset(0 0 0 0 round 12px);
@@ -366,6 +581,7 @@
 	to {
 		opacity: 0;
 		translate: 0 -8px;
+		scale: 1.03;
 		filter: blur(4px);
 	}
 }
@@ -417,9 +633,9 @@
 		)
 		scale(var(--scale));
 	transition:
-		transform var(--duration-spring-soft) var(--ease-spring-soft),
+		transform var(--duration-ignite) var(--ease-ignite),
 		opacity var(--duration-base) var(--ease-standard),
-		height var(--duration-spring-glide) var(--ease-spring-glide);
+		height var(--duration-sway) var(--ease-sway);
 	&[data-expanded] {
 		transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
 		height: var(--toast-height);
@@ -430,14 +646,14 @@
 	&[data-limited] {
 		opacity: 0;
 	}
-	/* 煙: 時間切れや閉じるボタンで消えるときは、上へ薄れる */
+	/* 煙: 時間切れや閉じるボタンで消えるときは、12px 上がりながら 1.02 倍に広がり、ぼけて薄れる */
 	&[data-ending-style] {
 		opacity: 0;
 		transition:
 			transform var(--duration-slow) var(--ease-out-expo),
 			opacity var(--duration-base) var(--ease-out-expo);
 		&:not([data-limited], [data-swipe-direction]) {
-			transform: translateY(calc(var(--offset-y) - 12px)) scale(0.98);
+			transform: translateY(calc(var(--offset-y) - 12px)) scale(1.02);
 			filter: blur(2px);
 		}
 		&[data-swipe-direction="right"] {
@@ -465,12 +681,12 @@
  */
 @utility motion-tongue {
 	--tongue-lead: 160ms var(--ease-out-expo);
-	--tongue-trail: var(--duration-spring-glide) var(--ease-spring-glide) 20ms;
+	--tongue-trail: var(--duration-sway) var(--ease-sway) 20ms;
 	transition:
-		left var(--duration-spring-glide) var(--ease-spring-glide),
-		right var(--duration-spring-glide) var(--ease-spring-glide),
-		top var(--duration-spring-glide) var(--ease-spring-glide),
-		bottom var(--duration-spring-glide) var(--ease-spring-glide);
+		left var(--duration-sway) var(--ease-sway),
+		right var(--duration-sway) var(--ease-sway),
+		top var(--duration-sway) var(--ease-sway),
+		bottom var(--duration-sway) var(--ease-sway);
 	&[data-activation-direction="right"] {
 		transition:
 			right var(--tongue-lead),
@@ -507,14 +723,14 @@
 	right: calc(100% - var(--inset) - var(--thumb) - var(--stretch));
 	transition:
 		left 200ms var(--ease-out-expo),
-		right var(--duration-spring-press) var(--ease-spring-press) 40ms,
+		right var(--duration-land) var(--ease-land) 40ms,
 		background-color var(--duration-base) var(--ease-standard);
 	&[data-checked] {
 		left: calc(100% - var(--inset) - var(--thumb) - var(--stretch));
 		right: var(--inset);
 		transition:
 			right 200ms var(--ease-out-expo),
-			left var(--duration-spring-press) var(--ease-spring-press) 40ms,
+			left var(--duration-land) var(--ease-land) 40ms,
 			background-color var(--duration-base) var(--ease-standard);
 	}
 	:where([data-slot="switch"]:active:not([data-disabled], [data-readonly])) & {
@@ -534,7 +750,7 @@
 	pointer-events: none;
 }
 
-/* テーマの切り替え（src/lib/theme.ts の setTheme）。コンポーネントごとの色の transition を止め、画面全体を 1 回のクロスフェードで切り替える */
+/* テーマの切り替え（src/lib/theme.ts の setTheme）。コンポーネントごとの色の transition を止め、画面全体を 1 回で切り替える。向きが分からないときは 360ms のクロスフェード、分かるときは下の夜明けと日暮れになる */
 [data-theme-switching],
 [data-theme-switching] *,
 [data-theme-switching] *::before,
@@ -546,6 +762,102 @@
 ::view-transition-new(root) {
 	animation-duration: 360ms;
 	animation-timing-function: var(--ease-standard);
+}
+
+/*
+ * 夜明けと日暮れ: setTheme が切り替えの間だけ :root に data-theme-to を付ける。
+ * 昼へは 0 時から 12 時、夜へは 12 時から 24 時の空の移り変わりを、720ms に縮めて通す。
+ * - 昼へ: 前の画面（夜）が薄明の青に明るみ、新しい画面（昼）が下の端から上へ広がる。新しい画面は、
+ *   最初の 25% は日の出の光の色（暖かい色）で、そこから日中の色へ戻る
+ * - 夜へ: 前の画面（昼）が夕日の色に寄って暗くなり、新しい画面（夜）が上の端から下へ広がる。新しい画面は、
+ *   最初の 30% は薄明の青で明るく、そこから夜の色へ沈む
+ * 境目は画面の高さと同じ幅のグラデーションでぼかす。
+ */
+:root[data-theme-to]::view-transition-old(root) {
+	animation: 720ms cubic-bezier(0.3, 0, 0.2, 1) both;
+	mix-blend-mode: normal;
+}
+:root[data-theme-to="light"]::view-transition-old(root) {
+	animation-name: night-ends;
+}
+:root[data-theme-to="dark"]::view-transition-old(root) {
+	animation-name: day-ends;
+}
+:root[data-theme-to]::view-transition-new(root) {
+	mix-blend-mode: normal;
+	mask-repeat: no-repeat;
+	mask-size: 100% 250%;
+	animation: 720ms cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+:root[data-theme-to="light"]::view-transition-new(root) {
+	mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
+	animation-name: dawn, sunrise;
+}
+:root[data-theme-to="dark"]::view-transition-new(root) {
+	mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+	animation-name: dusk, nightfall;
+}
+
+@keyframes dawn {
+	from {
+		mask-position: 0 -67%;
+	}
+	to {
+		mask-position: 0 100%;
+	}
+}
+
+@keyframes dusk {
+	from {
+		mask-position: 0 167%;
+	}
+	to {
+		mask-position: 0 0%;
+	}
+}
+
+/* 夜の終わり: 空が薄明の青に明るむ */
+@keyframes night-ends {
+	from {
+		filter: none;
+	}
+	60%,
+	to {
+		filter: brightness(1.5) saturate(1.6);
+	}
+}
+
+/* 日の出: 低い日の光の色から、日中の色へ */
+@keyframes sunrise {
+	from,
+	25% {
+		filter: sepia(0.5) saturate(1.7) brightness(0.88);
+	}
+	to {
+		filter: none;
+	}
+}
+
+/* 昼の終わり: 夕日の色に寄って暗くなる */
+@keyframes day-ends {
+	from {
+		filter: none;
+	}
+	55%,
+	to {
+		filter: sepia(0.55) saturate(1.8) brightness(0.8);
+	}
+}
+
+/* 日の入りのあと: 薄明の青から、夜の色へ沈む */
+@keyframes nightfall {
+	from,
+	30% {
+		filter: brightness(1.45) saturate(1.5);
+	}
+	to {
+		filter: none;
+	}
 }
 
 /* 動きを減らす設定では、位置と大きさの動きを消し、色と影の変化だけを残す */

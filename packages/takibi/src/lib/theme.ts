@@ -1,11 +1,13 @@
 export type Theme = "dark" | "light";
 
 /**
- * 夜と昼を切り替える。画面全体を 1 回のクロスフェードで切り替える。
+ * 夜と昼を切り替える。昼へは 0 時から 12 時、夜へは 12 時から 24 時の空の移り変わりを、720ms に縮めて通す（夜明けと日暮れ）。
+ * 昼へは、夜の画面が薄明の青に明るみ、日の出の光の色をした新しい画面が下の端から上へ広がって、日中の色に落ち着く。
+ * 夜へは、昼の画面が夕日の色に寄り、薄明の青をした新しい画面が上の端から下へ広がって、夜の色に沈む。
  *
  * コンポーネントはそれぞれ色の transition を持つので、ただ data-theme を変えると、コンポーネントごとに
  * 違う時刻で色が変わり、段になって見える。切り替えの間だけ transition を止めて一度に変え、
- * 対応するブラウザでは View Transitions で前後の画面を 360ms でクロスフェードさせる。
+ * 対応するブラウザでは View Transitions で前の画面の上に新しい画面を広げる。向きは data-theme-to で CSS（motion.css）に伝える。
  */
 export function setTheme(theme: Theme, root: HTMLElement = document.documentElement) {
 	if (root.dataset.theme === theme) return;
@@ -24,8 +26,13 @@ export function setTheme(theme: Theme, root: HTMLElement = document.documentElem
 		apply();
 		return;
 	}
+	root.dataset.themeTo = theme;
 	const transition = document.startViewTransition(apply);
-	// 素早く続けて切り替えると、前のクロスフェードは打ち切られる。それは想定どおりなので、失敗として扱わない
+	const clear = () => {
+		// 続けて切り替えたときは、あとの切り替えが付けた向きを消さない
+		if (root.dataset.themeTo === theme) delete root.dataset.themeTo;
+	};
+	// 素早く続けて切り替えると、前の切り替えは打ち切られる。それは想定どおりなので、失敗として扱わない
 	transition.ready.catch(() => {});
-	transition.finished.catch(() => {});
+	transition.finished.then(clear, clear);
 }

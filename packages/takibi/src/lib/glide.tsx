@@ -36,7 +36,7 @@ export function Glide({
 				"pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-surface-hover",
 				className,
 			)}
-			transition={springs.glide}
+			transition={springs.sway}
 		/>
 	);
 }

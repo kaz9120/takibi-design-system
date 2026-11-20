@@ -55,8 +55,8 @@ const meta = {
 				"閉じた知らせは DOM から外れ、スクリーンリーダーにも残らない",
 			],
 			motion: [
-				"閉じると、中身が 6px 上がりながら薄れて 2px ぼけ（120ms）、高さが 0 までたたまれる（260ms、ease-spring-glide）",
-				"出すときは、高さが広がり（330ms、ease-spring-glide）、中身が 6px 上から下りながら現れる（200ms、ease-standard）",
+				"閉じると、中身が 6px 上がりながら薄れて 2px ぼけ（120ms）、高さが 0 までたたまれる（260ms、ease-sway）",
+				"出すときは、高さが広がり（330ms、ease-sway）、中身が 6px 上から下りながら現れる（200ms、ease-standard）",
 			],
 			related: ["フィードバック/Alert", "フィードバック/Toast", "フィードバック/Callout"],
 		} satisfies ComponentDocs,

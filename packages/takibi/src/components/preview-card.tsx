@@ -40,7 +40,7 @@ export type PreviewCardContentProps = React.ComponentProps<typeof BasePreviewCar
 /**
  * リンク先の中身を、移動する前に見せる。人の紹介やページの要約に使う。
  * 中身にはスクリーンリーダーでもキーボードでも届かないので、リンク先にない情報や操作は置かない。
- * リンクの側からばねで大きくなって現れ、離れると速く縮んで消える。
+ * リンクの側から着火の曲線で大きくなって現れ、離れると速く縮んで消える。
  */
 export function PreviewCardContent({
 	className,

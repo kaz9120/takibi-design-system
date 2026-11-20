@@ -45,7 +45,7 @@ export function AccordionTrigger({
 				{children}
 				<ChevronDown
 					aria-hidden
-					className="size-4 shrink-0 text-fg-muted transition-[rotate,color] duration-(--duration-spring-press) ease-spring-press group-hover:text-fg group-data-panel-open:rotate-180"
+					className="size-4 shrink-0 text-fg-muted [transition:rotate_var(--duration-sway)_var(--ease-sway),color_var(--duration-fast)_var(--ease-standard)] group-hover:text-fg group-data-panel-open:rotate-180"
 				/>
 			</BaseAccordion.Trigger>
 		</BaseAccordion.Header>

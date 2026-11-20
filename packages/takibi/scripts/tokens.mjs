@@ -116,6 +116,7 @@ const groups = [
 	["--container-", "container"],
 	["--ink-", "palette.ink"],
 	["--ember-", "palette.ember"],
+	["--heat-", "palette.heat"],
 	["--smoke", "palette"],
 	["--moss", "palette"],
 	["--moon", "palette"],

@@ -15,7 +15,7 @@ const meta = {
 		takibi: {
 			use: [
 				"画面の上の帯などに置き、夜と昼をすぐに切り替える（ThemeToggle）",
-				"設定の画面で、夜・昼・端末に合わせる、から選ぶ（ThemeToggleGroup）",
+				"設定の画面で、夜・昼・端末に合わせる・時刻に合わせる、から選ぶ（ThemeToggleGroup）",
 			],
 			avoid: [{ case: "テーマ以外のオン・オフ", instead: "アクション/Toggle" }],
 			dos: [
@@ -36,10 +36,10 @@ const meta = {
 				"ThemeToggleGroup では、選んでいる項目が aria-pressed で読み上げられる",
 			],
 			motion: [
-				"ThemeToggle を押すと、月と太陽が 90 度回りながら、0.5 倍・4px ぼけた状態との間で入れ替わる。ばねは springs.snappy",
-				"画面全体は、対応するブラウザでは 360ms のクロスフェードで 1 回で切り替わる",
+				"ThemeToggle を押すと、月と太陽が、ボタンの下にある点を中心に 75 度ずつ回って入れ替わる。次のアイコンは左下から現れ、前のアイコンは右下へ消える。動きは揺れる曲線（springs.sway）",
+				"画面全体は、対応するブラウザでは 720ms で切り替わる。昼へは新しい画面が下の端から上へ、夜へは上の端から下へ広がる（夜明けと日暮れ）",
 				"ThemeToggleGroup では、選んだ面が溝の中を滑って移る（炎の舌）",
-				"動きを減らす設定では、アイコンの回転とクロスフェードをやめ、すぐに切り替える",
+				"動きを減らす設定では、アイコンの回転と画面が広がる動きをやめ、すぐに切り替える",
 			],
 			related: ["アクション/ToggleGroup", "アクション/Toggle", "アクション/Button"],
 		} satisfies ComponentDocs,
@@ -62,18 +62,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 押すと月と太陽が回りながら入れ替わり、画面全体が 1 回のクロスフェードで切り替わる */
+/** 押すと、出ていたアイコンが右下へ沈み、次のアイコンが左下から昇る。画面全体は 720ms で切り替わる。昼へは下の端から上へ、夜へは上の端から下へ広がる */
 export const Basic: Story = { name: "ボタン" };
 
-/** 夜、昼、端末に合わせる、の 3 つから選ぶ。選んだ面が溝の中を滑って移る */
+/** 夜、昼、端末に合わせる、時刻に合わせる、の 4 つから選ぶ。選んだ面が溝の中を滑って移る。時刻に合わせると、5 時 45 分に昼、18 時 15 分に夜へ切り替わる */
 export const Segmented: Story = {
-	name: "3 つから選ぶ",
+	name: "4 つから選ぶ",
 	render: () => <ThemeToggleGroup />,
 };
 
 /** 狭い場所に置くときは、アイコンだけにする */
 export const SegmentedIconOnly: Story = {
-	name: "3 つから選ぶ（アイコンだけ）",
+	name: "4 つから選ぶ（アイコンだけ）",
 	render: () => <ThemeToggleGroup iconOnly />,
 };
 

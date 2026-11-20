@@ -4,31 +4,14 @@ import { expect, waitFor } from "storybook/test";
 import type { ComponentDocs } from "../spec";
 import { Button } from "./button";
 import { Image } from "./image";
+import { campfires, campfireTiny } from "./samples";
 
-/** 見本の画像。通信なしで描ける SVG の焚き火の景色 */
-function campfireScene(hue = 24) {
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">
-<defs>
-<radialGradient id="g" cx="50%" cy="78%" r="60%"><stop offset="0" stop-color="hsl(${hue} 95% 62%)"/><stop offset=".35" stop-color="hsl(${hue - 6} 80% 32%)"/><stop offset="1" stop-color="hsl(30 20% 6%)"/></radialGradient>
-<linearGradient id="f" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="hsl(${hue + 16} 100% 70%)"/><stop offset="1" stop-color="hsl(${hue} 95% 50%)" stop-opacity="0"/></linearGradient>
-</defs>
-<rect width="640" height="400" fill="url(#g)"/>
-<path d="M320 330c-40-30-30-80 0-130 10 40 40 50 40 90 0 25-15 40-40 40z" fill="url(#f)"/>
-<path d="M300 336c-14-18-8-44 10-62 2 24 22 30 22 48 0 10-8 18-32 14z" fill="hsl(${hue + 24} 100% 78%)" opacity=".8"/>
-<rect x="230" y="332" width="180" height="14" rx="7" fill="hsl(25 30% 14%)" transform="rotate(-8 320 339)"/>
-<rect x="230" y="332" width="180" height="14" rx="7" fill="hsl(25 30% 18%)" transform="rotate(8 320 339)"/>
-</svg>`;
-	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-const tinyPlaceholder = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"><rect width="4" height="3" fill="#2a1a10"/><circle cx="2" cy="2.4" r="1.2" fill="#c64414"/></svg>',
-)}`;
+const tinyPlaceholder = campfireTiny;
 
 const meta = {
 	title: "コンポーネント/データ表示/Image",
 	component: Image,
-	args: { src: campfireScene(), alt: "夜の焚き火", ratio: "16/9" },
+	args: { src: campfires[0], alt: "夜の焚き火", ratio: "16/9" },
 	argTypes: {
 		rounded: { control: "inline-radio", options: ["none", "sm", "md", "lg", "xl", "full"] },
 		fit: { control: "inline-radio", options: ["cover", "contain"] },
@@ -57,7 +40,7 @@ const meta = {
 				"待つ面とぼかした小さな画像は、読み上げない",
 			],
 			motion: [
-				"待つ間は、ブランドカラーを薄く混ぜた帯が 1.8 秒で左から右へ流れる（motion-ember-pulse）",
+				"待つ間は、ブランドカラーを薄く混ぜた 2 本の帯が、2.9 秒と 4.7 秒の周期で逆向きに流れる（motion-ember-pulse）",
 				"届くと、画像は 1.04 倍でぼけた透明の状態から、560ms で等倍のくっきりした姿になる（ease-ember）",
 				"読み込めなかったときの代わりの表示は、200ms で薄く現れる",
 			],
@@ -86,7 +69,7 @@ export const Ratios: Story = {
 		<div className="grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
 			{([1, "4/3", "3/2", "16/9"] as const).map((r) => (
 				<figure key={r} className="flex flex-col gap-1.5">
-					<Image src={campfireScene()} alt="" ratio={r} />
+					<Image src={campfires[0]} alt="" ratio={r} />
 					<figcaption className="text-sm text-fg-muted">{r}</figcaption>
 				</figure>
 			))}
@@ -101,7 +84,7 @@ export const Rounded: Story = {
 		<div className="flex flex-wrap items-end gap-4">
 			{(["none", "sm", "md", "lg", "xl", "full"] as const).map((r) => (
 				<figure key={r} className="flex w-24 flex-col gap-1.5">
-					<Image src={campfireScene(18)} alt="" ratio={1} rounded={r} />
+					<Image src={campfires[1]} alt="" ratio={1} rounded={r} />
 					<figcaption className="text-sm text-fg-muted">{r}</figcaption>
 				</figure>
 			))}
@@ -122,7 +105,7 @@ function LoadingDemo() {
 	const [round, setRound] = React.useState(0);
 	return (
 		<div className="flex max-w-2xl flex-col gap-4">
-			<SlowPair key={round} hue={20 + (round % 3) * 6} />
+			<SlowPair key={round} photo={campfires[round % 3] ?? campfires[0]} />
 			<div>
 				<Button variant="secondary" size="sm" onClick={() => setRound((n) => n + 1)}>
 					読み込み直す
@@ -133,13 +116,13 @@ function LoadingDemo() {
 }
 
 /** 1.4 秒たってから src を渡し、遅い通信を真似る */
-function SlowPair({ hue }: { hue: number }) {
+function SlowPair({ photo }: { photo: string }) {
 	const [ready, setReady] = React.useState(false);
 	React.useEffect(() => {
 		const t = setTimeout(() => setReady(true), 1400);
 		return () => clearTimeout(t);
 	}, []);
-	const src = ready ? campfireScene(hue) : undefined;
+	const src = ready ? photo : undefined;
 	return (
 		<div className="grid grid-cols-2 gap-4">
 			<figure className="flex flex-col gap-1.5">

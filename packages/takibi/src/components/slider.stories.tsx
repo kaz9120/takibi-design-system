@@ -34,10 +34,10 @@ const meta = {
 				"Field の外で使うときは aria-label か thumbLabels で名前を付ける",
 			],
 			motion: [
-				"ハンドルは押すと 1.25 倍に膨らみ、離すとばね（spring-press）で戻る",
+				"ハンドルは押すと 1.25 倍に膨らみ、離すと載る曲線（ease-land）で戻る",
 				"ハンドルの周りの薄い輪は、hover で 1.5 倍、フォーカスで 1.75 倍、動かしている間は 2 倍に広がる",
-				"キーで動かすと、ハンドルと値の帯がばね（spring-glide）で追う。指で動かしている間は遅れずに付いてくる",
-				"ハンドルの上の値は、4px 下から 0.9 倍の大きさで現れる（spring-soft）",
+				"キーで動かすと、ハンドルと値の帯が揺れる曲線（ease-sway）で追う。指で動かしている間は遅れずに付いてくる",
+				"ハンドルの上の値は、4px 下から 0.9 倍の大きさで現れる（ease-ignite）",
 			],
 			related: ["フォーム/NumberField", "フィードバック/Meter", "フォーム/Field"],
 		} satisfies ComponentDocs,

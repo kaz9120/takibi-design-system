@@ -4,12 +4,14 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 import { cn } from "../lib/cn";
 import { amplitude, springs, swap } from "../lib/motion";
+import { Sparks } from "./sparks";
 import { Spinner } from "./spinner";
 
 export const buttonVariants = cva(
 	[
 		"relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium select-none",
-		"transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) ease-standard",
+		// 余熱: hover の光は 120ms で出て、離れると 560ms かけて消える
+		"motion-afterglow",
 		"outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
 		"disabled:cursor-not-allowed disabled:opacity-50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
 		"[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -109,7 +111,7 @@ export function Button({
 			render={
 				<motion.button
 					animate={width === undefined ? undefined : { width }}
-					transition={reduce ? { duration: 0 } : { scale: springs.press, width: springs.glide }}
+					transition={reduce ? { duration: 0 } : { scale: springs.land, width: springs.sway }}
 					whileHover={moves ? { scale: amplitude.hover } : undefined}
 					whileTap={moves ? { scale: pressScale, transition: pressIn } : undefined}
 				/>
@@ -137,7 +139,8 @@ export function Button({
 							</motion.span>
 						</AnimatePresence>
 					</span>
-					{status === "success" && <Embers key="embers" />}
+					{/* はぜる: 完了の瞬間に、右上の角の 1 点から火の粉が 6 つ飛ぶ */}
+					{status === "success" && <Sparks key="sparks" count={6} from="corner" />}
 					<span className="sr-only" aria-live="polite">
 						{status === "success" ? successLabel : ""}
 					</span>
@@ -150,7 +153,7 @@ export function Button({
 }
 
 /**
- * 中身の幅を測り、ボタンの幅をばねで追わせる。中身が入れ替わっても形が切れずに伸び縮みする。
+ * 中身の幅を測り、ボタンの幅を揺れる曲線で追わせる。中身が入れ替わっても形が切れずに伸び縮みする。
  * ボタンの左右の余白と枠線は、測った値に足して返す。
  */
 function useMorphWidth(
@@ -216,31 +219,5 @@ function DrawnCheck() {
 	);
 }
 
-/** 押し込むときは速く沈める。離したときは transition の press のばねで弾んで戻る */
+/** 押し込むときは速く沈める。離したときは transition の載る曲線（springs.land）で跳ね返ってから戻る */
 const pressIn = { duration: 0.15, ease: [0.16, 1, 0.3, 1] } as const;
-
-/** はぜる: 完了の瞬間に、ボタンの上の縁から火の粉が 6 つだけ舞い上がる */
-const sparks = [
-	{ left: "18%", x: "-6px", y: "-18px", d: "0ms" },
-	{ left: "32%", x: "3px", y: "-26px", d: "60ms" },
-	{ left: "46%", x: "-3px", y: "-20px", d: "20ms" },
-	{ left: "58%", x: "5px", y: "-30px", d: "90ms" },
-	{ left: "71%", x: "-4px", y: "-22px", d: "40ms" },
-	{ left: "84%", x: "6px", y: "-16px", d: "110ms" },
-];
-
-function Embers() {
-	return (
-		<span aria-hidden className="motion-flare pointer-events-none absolute inset-0 rounded-[inherit]">
-			{sparks.map((s) => (
-				<span
-					key={s.left}
-					className="motion-spark absolute top-0 size-[3px] rounded-full bg-(--ember-300)"
-					style={
-						{ left: s.left, "--spark-x": s.x, "--spark-y": s.y, "--spark-delay": s.d } as React.CSSProperties
-					}
-				/>
-			))}
-		</span>
-	);
-}

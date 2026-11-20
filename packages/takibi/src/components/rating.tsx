@@ -99,19 +99,19 @@ export function Rating({
 						)}
 					>
 						<motion.span
-							// 選んだ瞬間に作り直し、大きめの状態からばねで元に戻す（弾む）
+							// 選んだ瞬間に作り直し、大きめの状態からはぜる曲線で元に戻す
 							key={popping ? `pop-${pop.count}` : "idle"}
 							className="flex"
 							initial={popping && !reduce ? { scale: 1.4, rotate: -8 } : false}
 							animate={{ scale: 1, rotate: 0 }}
-							transition={springs.snappy}
+							transition={springs.pop}
 						>
 							<Star
 								aria-hidden
 								strokeWidth={1.75}
 								className={cn(
 									starSizes[size],
-									"[transition:color_var(--duration-fast)_var(--ease-standard),fill_var(--duration-fast)_var(--ease-standard),scale_var(--duration-spring-press)_var(--ease-spring-press)]",
+									"[transition:color_var(--duration-fast)_var(--ease-standard),fill_var(--duration-fast)_var(--ease-standard),scale_var(--duration-land)_var(--ease-land)]",
 									"group-hover/star:not-group-data-disabled/star:scale-115",
 									"group-active/star:not-group-data-disabled/star:scale-85",
 									filled

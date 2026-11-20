@@ -43,7 +43,7 @@ const meta = {
 				'今のページの項目に aria-current="page" が付く。無効の項目には aria-disabled が付く',
 			],
 			motion: [
-				"選択中の背景（ブランドカラーの薄い色）は、前の項目から新しい項目へ滑って移る（springs.glide）。動きを減らす設定では移らずに切り替わる",
+				"選択中の背景（ブランドカラーの薄い色）は、前の項目から新しい項目へ滑って移る（springs.sway）。動きを減らす設定では移らずに切り替わる",
 				"項目は押すと 0.98 倍に沈み、離すと戻る（motion-press-surface）",
 			],
 			related: ["ナビゲーション/NavigationMenu", "データ表示/Tabs", "ナビゲーション/Breadcrumbs"],

@@ -3,6 +3,7 @@ import { expect, screen, userEvent, waitFor } from "storybook/test";
 import type { ComponentDocs } from "../spec";
 import { Image } from "./image";
 import { PreviewCard, PreviewCardContent, PreviewCardTrigger } from "./preview-card";
+import { campfires } from "./samples";
 
 const meta = {
 	title: "コンポーネント/オーバーレイ/PreviewCard",
@@ -30,7 +31,7 @@ const meta = {
 			],
 			motion: [
 				"hover かフォーカスから 500ms 待って開き、離れてから 200ms で閉じる",
-				"リンクの側から 4px 寄りながら、0.94 倍から等倍へ、ばね（spring-soft）で現れる（motion-rise）",
+				"リンクの側から 4px 寄りながら、0.94 倍から等倍へ、はぜる曲線（ease-pop）で現れる（motion-rise）",
 				"開いている間は、リンクの下線が文字と同じ濃さになる",
 			],
 			related: ["オーバーレイ/Tooltip", "オーバーレイ/Popover", "ナビゲーション/Link"],
@@ -41,9 +42,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const cover = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-	`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><defs><radialGradient id="g" cx="50%" cy="90%" r="80%"><stop offset="0" stop-color="#f8a05c"/><stop offset=".4" stop-color="#9a3210"/><stop offset="1" stop-color="#13110e"/></radialGradient></defs><rect width="320" height="180" fill="url(#g)"/></svg>`,
-)}`;
+const cover = campfires[2];
 
 /** 人へのリンクに hover すると、500ms 待ってから紹介が出る。離れると縮んで消える */
 export const Basic: Story = {

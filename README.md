@@ -29,4 +29,11 @@ bun run workbench   # http://localhost:6006
 
 ## ライセンス
 
-MIT
+MIT です（`LICENSE`）。
+
+次の 2 つの星のデータだけは CC BY-SA 4.0 です。HYG Database v4.4（David Nash、https://codeberg.org/astronexus/hyg 、CC BY-SA 4.0）から抜き出して改変したものです。改変の内容は各ファイルの先頭に、ライセンスの全文は `packages/takibi/LICENSES/CC-BY-SA-4.0.txt` にあります。
+
+- `packages/takibi/src/stars-data.js`
+- `labs/sky/stars.js`
+
+`labs/sky/index.html` は、Eric Bruneton の Precomputed Atmospheric Scattering（BSD 3-Clause）から数値の表を取り、Epic Games の UnrealEngineSkyAtmosphere（MIT）を参考に書いています。著作権表示とライセンスの全文は `labs/sky/THIRD-PARTY-NOTICES.md` にあります。

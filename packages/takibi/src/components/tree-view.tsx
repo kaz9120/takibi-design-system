@@ -309,7 +309,7 @@ function TreeItem({
 							className="inline-flex"
 							initial={false}
 							animate={{ rotate: isOpen ? 90 : 0 }}
-							transition={reduce ? { duration: 0 } : springs.snappy}
+							transition={reduce ? { duration: 0 } : springs.pop}
 						>
 							<ChevronRight className="size-3.5" />
 						</motion.span>
@@ -342,7 +342,7 @@ function TreeItem({
 								opacity: 1,
 								transition: reduce
 									? { duration: 0 }
-									: { height: springs.glide, opacity: { duration: 0.2, ease: [0.2, 0.8, 0.2, 1] } },
+									: { height: springs.sway, opacity: { duration: 0.2, ease: [0.2, 0.8, 0.2, 1] } },
 							}}
 							exit={{
 								height: 0,

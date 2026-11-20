@@ -55,8 +55,8 @@ const meta = {
 				"右端のアイコンだけのボタンには aria-label を付ける",
 			],
 			motion: [
-				"行は hover で背景の色が付き（120ms）、押すと 0.98 倍に縮み、離すとばね（spring-press）で戻る",
-				"移動する行の矢印は、hover で右へ 2px 寄る（spring-snappy）",
+				"行は hover で背景の色が付き（120ms）、押すと 0.98 倍に縮み、離すと載る曲線（ease-land）で戻る",
+				"移動する行の矢印は、hover で右へ 2px 寄る（ease-pop）",
 			],
 			related: [
 				"データ表示/Table",

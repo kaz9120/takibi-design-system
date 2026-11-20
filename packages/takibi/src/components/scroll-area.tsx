@@ -93,7 +93,7 @@ export function ScrollBar({
 				data-slot="scroll-area-thumb"
 				className={cn(
 					"relative rounded-full bg-line-strong",
-					"transition-[width,height,background-color] duration-(--duration-spring-press) ease-spring-press",
+					"transition-[width,height,background-color] duration-(--duration-land) ease-land",
 					"group-hover/scrollbar:bg-fg-subtle active:bg-fg-muted",
 					"data-[orientation=vertical]:w-1 group-hover/scrollbar:data-[orientation=vertical]:w-1.5",
 					"data-[orientation=horizontal]:h-1 group-hover/scrollbar:data-[orientation=horizontal]:h-1.5",

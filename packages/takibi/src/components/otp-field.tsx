@@ -132,7 +132,7 @@ export function OTPFieldInput({ className, ...props }: React.ComponentProps<type
 											? { opacity: 0, transition: { duration: 0 } }
 											: { opacity: 0, scale: 0.6, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }
 									}
-									transition={springs.snappy}
+									transition={springs.pop}
 								>
 									{inputProps.type === "password" ? (
 										<span className="block size-2.5 rounded-full bg-current" />

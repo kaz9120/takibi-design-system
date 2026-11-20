@@ -55,6 +55,7 @@ export * from "./components/separator";
 export * from "./components/skeleton";
 export * from "./components/skip-link";
 export * from "./components/slider";
+export * from "./components/sparks";
 export * from "./components/spinner";
 export * from "./components/stack";
 export * from "./components/steps";
@@ -73,6 +74,17 @@ export * from "./components/tooltip";
 export * from "./components/tree-view";
 export * from "./components/visually-hidden";
 export { cn } from "./lib/cn";
+export {
+	applySky,
+	DAYLIGHT_SITE,
+	type Sky,
+	setWeather,
+	skyAt,
+	startDaylight,
+	sunElevation,
+	type Weather,
+} from "./lib/daylight";
 export { Glide, GlideGroup, glideRender } from "./lib/glide";
-export { amplitude, springs, swap } from "./lib/motion";
+export { amplitude, cool, smoke, springs, swap } from "./lib/motion";
 export { setTheme, type Theme } from "./lib/theme";
+export { trackWarmth } from "./lib/warmth";

@@ -64,8 +64,8 @@ const meta = {
 				"選んだ項目は点の色だけでなく、スクリーンリーダーでも選択中と伝わる",
 			],
 			motion: [
-				"押すと 0.92 倍に沈み、離すとばね（spring-press）で戻る（motion-press-icon）",
-				"選ぶと中の点が 0 から膨らんで現れる（spring-snappy）。外すと 120ms で縮んで消える",
+				"押すと 0.92 倍に沈み、離すと載る曲線（ease-land）で戻る（motion-press-icon）",
+				"選ぶと中の点が 0 から膨らんで現れる（ease-pop）。外すと 120ms で縮んで消える",
 			],
 			related: ["フォーム/Select", "フォーム/CheckboxGroup", "フォーム/Fieldset", "アクション/ToggleGroup"],
 		} satisfies ComponentDocs,

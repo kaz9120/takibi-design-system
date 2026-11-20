@@ -86,7 +86,7 @@ export function Tag({ className, size, children, onRemove, removeLabel, ...props
 			initial={grouped && !reduce ? { opacity: 0, scale: 0.85, filter: "blur(2px)" } : false}
 			animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
 			exit={reduce ? { opacity: 0, transition: { duration: 0.12 } } : smoke}
-			transition={springs.snappy}
+			transition={springs.pop}
 			// 消えている最中のタグは操作させず、隣のタグを探すときにも数えない
 			data-exiting={present ? undefined : ""}
 			inert={!present}
@@ -150,7 +150,7 @@ export function SelectableTag({ className, size, children, ...props }: Selectabl
 			<span
 				aria-hidden
 				className={cn(
-					"-mr-1 grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-(--duration-spring-glide) ease-spring-glide",
+					"-mr-1 grid grid-cols-[0fr] transition-[grid-template-columns,margin] duration-(--duration-sway) ease-sway",
 					"group-data-pressed/tag:mr-0 group-data-pressed/tag:grid-cols-[1fr]",
 				)}
 			>
@@ -158,7 +158,7 @@ export function SelectableTag({ className, size, children, ...props }: Selectabl
 					<Check
 						className={cn(
 							"scale-50 opacity-0 transition-[opacity,scale] duration-(--duration-fast) ease-out-expo",
-							"group-data-pressed/tag:scale-100 group-data-pressed/tag:opacity-100 group-data-pressed/tag:duration-(--duration-spring-snappy) group-data-pressed/tag:ease-spring-snappy",
+							"group-data-pressed/tag:scale-100 group-data-pressed/tag:opacity-100 group-data-pressed/tag:duration-(--duration-pop) group-data-pressed/tag:ease-pop",
 						)}
 					/>
 				</span>

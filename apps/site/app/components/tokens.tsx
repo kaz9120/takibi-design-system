@@ -166,7 +166,7 @@ function MotionTokens() {
 			<Section title="時間">
 				<Rows rows={flat(tokens.duration)} preview={() => null} />
 			</Section>
-			<Section title="曲線とばね">
+			<Section title="曲線">
 				<Rows rows={flat(tokens.ease)} preview={() => null} />
 			</Section>
 			<Section title="振れ幅">

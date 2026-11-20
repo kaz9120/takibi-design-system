@@ -1,310 +1,201 @@
 /* ============================================================
-   <takibi-embers> — 炎・火の粉のCanvasアニメーション v2
+   <takibi-embers> — 火の粉の背景
    ------------------------------------------------------------
    使い方:
      import "takibi-design-system/embers";
-     <takibi-embers density="45" wind="0.2"></takibi-embers>
+     <takibi-embers density="45"></takibi-embers>
 
    属性:
-     density  火の粉の数（既定 45）
-     wind     横方向の風（-1 〜 1、既定 0）
-     hue      色相シフト（既定 0、橙が基準）
-     glow     下からのほのかなグロー（"on" / "off"、既定 "on"）
+     density  火の粉の多さ（既定 45）。はぜる回数が増える。45 のとき、平均 0.4 秒に 1 回、1〜4 個が飛び、画面には 2〜10 個が見える
+     wind     横方向の風（-1〜1、既定 0）。1 で毎秒 0.6m
+     glow     下の端の淡い光（"on" / "off"、既定 "on"）
 
-   親要素は position: relative にしておくこと。
-   z-index は背景として使うことを想定（pointer-events なし）。
+   親要素は position: relative にしておくこと。背景として置く（pointer-events なし）。
 
-   v2 変更点:
-   - 爆ぜ（pop）: クラスター発生、短命、速い上昇、放物線軌道
-   - 揺らぎ上昇（drift）: サイン波ガイドで有機的に揺れながら上昇
-   - 不規則明滅: ノイズベースのフリッカー（sine → hash noise）
-   - 白熱フラッシュ: 生まれた瞬間だけ明るいコア
-   - radialGradient 描画: shadowBlur → ソフトグローで統一
+   動き方は、焚き火の計算モデル（labs/fire3d）の火の粉と同じ式にしている。火は要素の下の端の外にあるとする。
+   - 要素の高さを 1.8m として、実寸で計算する
+   - はぜる: 次に飛ぶまでの時間は指数分布から引く。1 回に 1〜4 個が、同じ場所からばらばらの向きへ飛び出す
+   - 空気の抵抗: 飛び出した速さは、0.12 秒（大きい粒は 0.18 秒）ごとに約 1/3 になり、周りの気流の速さに近づく
+   - 気流: はぜた場所の真上ほど速く昇る（下の端で毎秒 1.5m）。昇るほど遅く、広くなる。細かい乱れで左右に揺れる
+   - 冷える: 粒の温度は 1500K 前後から 760K へ、1.3〜3.9 秒ごとに約 1/3 ずつ近づく。色と明るさは温度から黒体放射の式で決める。
+     画面の明るさは、放射の強さの平方根にする。放射の強さが 1% を切ると消える。小さい粒は 0.8 秒、大きい粒は 2.4 秒ほどで消え、その間に 0.5〜1.3m 昇る。
+     計算モデルの火の粉（0.3〜0.8 秒で消える）より長いのは、背景として高い所まで見せるために、冷える速さを約 3 分の 1 にしたため
+   - 軌跡: 1/30 秒ぶんの動きを線で描く。速い粒ほど長い線になる。夜は、線の 4 倍の太さのにじみを重ねる
+   - 昼（祖先の data-theme="light"）は、日の光で火の粉が見えにくいので、暗く濃い色で小さく描く
+   - 画面の外にある間は止める。動きを減らす設定では描かない
    ============================================================ */
+
+const HEIGHT_M = 1.8;
+/** 黒体放射（610、550、465nm）。1500K の赤を 1 とする */
+function planck(T) {
+	const ref = 1 / (Math.exp(0.0143877 / (610e-9 * 1500)) - 1);
+	return [610e-9, 550e-9, 465e-9].map((l) => 1 / ((l / 610e-9) ** 5 * (Math.exp(0.0143877 / (l * T)) - 1)) / ref);
+}
+/** 気流の細かい乱れ。場所と時刻で決まる -1〜1 の値 */
+const gust = (x, y, t, seed) => Math.sin(x * 5.1 + t * 1.7 + seed) * 0.6 + Math.sin(y * 7.3 - t * 2.9 + seed * 2.1) * 0.4;
 
 class TakibiEmbers extends HTMLElement {
 	constructor() {
 		super();
-		this._raf = null;
-		this._particles = [];
+		this._raf = 0;
+		this._sparks = [];
 		this._last = 0;
-		this._nextSpawn = 0;
+		this._time = 0;
+		this._next = 0.4;
+		this._visible = true;
 	}
 
 	connectedCallback() {
-		const root = this.attachShadow({ mode: "open" });
+		const root = this.shadowRoot ?? this.attachShadow({ mode: "open" });
 		root.innerHTML = `
       <style>
-        :host {
-          position: absolute;
-          inset: 0;
-          display: block;
-          pointer-events: none;
-          overflow: hidden;
-        }
+        :host { position: absolute; inset: 0; display: block; pointer-events: none; overflow: hidden; }
         canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
         .glow {
-          position: absolute;
-          left: 0; right: 0; bottom: -40%;
-          height: 80%;
+          position: absolute; left: 0; right: 0; bottom: -40%; height: 80%;
           background: radial-gradient(
             ellipse at 50% 100%,
-            rgba(244, 125, 58, 0.22) 0%,
-            rgba(232, 93, 32, 0.10) 30%,
+            color-mix(in oklab, var(--color-heat-ember, #f47d3a) 22%, transparent) 0%,
+            color-mix(in oklab, var(--color-heat-coal, #c64414) 12%, transparent) 30%,
             transparent 65%
           );
           filter: blur(20px);
         }
+        :host([glow="off"]) .glow { display: none; }
       </style>
       <div class="glow"></div>
       <canvas></canvas>
     `;
 		this._canvas = root.querySelector("canvas");
-		this._glow = root.querySelector(".glow");
-		if (this.getAttribute("glow") === "off") this._glow.style.display = "none";
 		this._ctx = this._canvas.getContext("2d");
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+		this._tick = this._tick.bind(this);
 		this._ro = new ResizeObserver(() => this._resize());
 		this._ro.observe(this);
 		this._resize();
-		this._reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-		// reduced motion 環境では火の粉を描かず、静的なグローだけ残す。
-		// アクセシビリティ対応であると同時に、VRT の撮影を決定的にする (#65)。
-		if (this._reduce) return;
-		this._spawnInitial();
-		this._tick = this._tick.bind(this);
-		this._raf = requestAnimationFrame(this._tick);
+		this._io = new IntersectionObserver(([entry]) => {
+			this._visible = entry?.isIntersecting ?? true;
+			if (this._visible && !this._raf) {
+				this._last = 0;
+				this._raf = requestAnimationFrame(this._tick);
+			}
+		});
+		this._io.observe(this);
 	}
 
 	disconnectedCallback() {
 		cancelAnimationFrame(this._raf);
+		this._raf = 0;
 		this._ro?.disconnect();
+		this._io?.disconnect();
 	}
 
 	_resize() {
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
-		const w = this.clientWidth;
-		const h = this.clientHeight;
-		this._w = w;
-		this._h = h;
-		this._canvas.width = w * dpr;
-		this._canvas.height = h * dpr;
+		this._w = this.clientWidth;
+		this._h = this.clientHeight;
+		this._canvas.width = this._w * dpr;
+		this._canvas.height = this._h * dpr;
 		this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
 
-	_density() {
-		return parseFloat(this.getAttribute("density")) || 45;
-	}
-	_wind() {
-		return parseFloat(this.getAttribute("wind")) || 0;
-	}
-	_hue() {
-		return parseFloat(this.getAttribute("hue")) || 0;
+	_number(name, fallback, min, max) {
+		const v = parseFloat(this.getAttribute(name));
+		return Math.min(max, Math.max(min, Number.isFinite(v) ? v : fallback));
 	}
 
-	/* ── Hash noise for irregular flicker ── */
-	static _noise(s, t) {
-		const a = Math.sin(s * 127.1 + t * 311.7) * 43758.5453;
-		const b = Math.sin(s * 269.5 + t * 183.3) * 28001.8384;
-		return (a - Math.floor(a)) * 0.6 + (b - Math.floor(b)) * 0.4;
-	}
-
-	/* ── Spawn origin: bottom zone of the canvas ── */
-	_spawnOrigin() {
-		const w = this._w;
-		const h = this._h;
-		return {
-			x: w * 0.12 + Math.random() * w * 0.76,
-			y: h * 0.78 + Math.random() * h * 0.18,
-		};
-	}
-
-	/* ── Create a pop spark (fast, short-lived burst) ── */
-	_makePop(origin) {
-		const R = Math.random;
-		const angle = -Math.PI / 2 + (R() - 0.5) * 1.0;
-		const speed = 1.8 + R() * 2.5;
-		return {
-			x: origin.x + (R() - 0.5) * 10,
-			y: origin.y + (R() - 0.5) * 6,
-			originX: origin.x,
-			originY: origin.y,
-			vx: Math.cos(angle) * speed * 0.3,
-			vy: -speed,
-			r: 0.8 + R() * 1.6,
-			life: 0,
-			max: 0.6 + R() * 1.2,
-			type: "pop",
-			seed: R() * 999,
-			popDur: 0.05 + R() * 0.08,
-			hueShift: (R() - 0.5) * 24,
-			gravity: 0.02 + R() * 0.015,
-			drag: 0.985,
-		};
-	}
-
-	/* ── Create a drift spark (slow wave-guided rise) ── */
-	_makeDrift(origin) {
-		const R = Math.random;
-		const w = this._w;
-		return {
-			x: origin.x + (R() - 0.5) * 8,
-			y: origin.y + (R() - 0.5) * 6,
-			originX: origin.x,
-			originY: origin.y,
-			vy: -(0.5 + R() * 1.0),
-			freq: 0.008 + R() * 0.012,
-			amp: 30 + R() * 50,
-			phase: R() * Math.PI * 2,
-			targetX: origin.x + (R() - 0.5) * w * 0.4,
-			r: 1.0 + R() * 2.2,
-			life: 0,
-			max: 2.0 + R() * 3.5,
-			type: "drift",
-			seed: R() * 999,
-			popDur: 0.06 + R() * 0.1,
-			hueShift: (R() - 0.5) * 24,
-		};
-	}
-
-	/* ── Pre-populate with mid-flight drifters ── */
-	_spawnInitial() {
-		const R = Math.random;
-		const count = Math.min(8, Math.floor(this._density() * 0.2));
+	/** 1 か所がはぜて、count 個の火の粉が飛び出す。位置と速さの単位はメートル */
+	_pop(count, widthM) {
+		const x = (Math.random() - 0.5) * widthM * 0.5;
 		for (let i = 0; i < count; i++) {
-			const o = this._spawnOrigin();
-			const p = this._makeDrift(o);
-			p.life = R() * p.max * 0.5;
-			p.y = o.y + p.vy * 60 * p.life * 0.3;
-			p.x = o.x + Math.sin(p.y * p.freq + p.phase) * p.amp * 0.5;
-			this._particles.push(p);
+			const angle = (Math.random() - 0.5) * 1.9;
+			const speed = 0.6 + Math.random() * 1.6;
+			const mass = 0.5 + Math.random();
+			this._sparks.push({
+				x0: x,
+				x: x + (Math.random() - 0.5) * 0.05,
+				y: -0.05,
+				vx: Math.sin(angle) * speed,
+				vy: Math.cos(angle) * speed + 0.8,
+				T: 1380 + Math.random() * 240,
+				mass,
+				seed: Math.random() * 40,
+			});
 		}
 	}
 
-	/* ── Spawn a cluster ── */
-	_spawnCluster() {
-		const R = Math.random;
-		const ps = this._particles;
-		const max = this._density();
-		const origin = this._spawnOrigin();
-		const count = 1 + Math.floor(R() * 3);
-		for (let i = 0; i < count && ps.length < max; i++) {
-			if (i === 0 && R() < 0.3) {
-				ps.push(this._makePop(origin));
-			} else {
-				const o = {
-					x: origin.x + (R() - 0.5) * 8,
-					y: origin.y + (R() - 0.5) * 6,
-				};
-				ps.push(this._makeDrift(o));
-			}
-		}
-	}
-
-	/* ── Update pop particle ── */
-	_updatePop(p, dt, time) {
-		const noise = TakibiEmbers._noise;
-		p.vy += p.gravity * 60 * dt;
-		p.vx *= p.drag;
-		p.vy *= p.drag;
-		p.vx += (noise(p.seed, time * 4) - 0.5) * 0.06 * 60 * dt;
-		p.x += (p.vx + this._wind()) * 60 * dt;
-		p.y += p.vy * 60 * dt;
-	}
-
-	/* ── Update drift particle ── */
-	_updateDrift(p, dt, time) {
-		const noise = TakibiEmbers._noise;
-		p.vy *= 0.9995;
-		p.y += p.vy * 60 * dt;
-		const k = p.life / p.max;
-		const waveX = Math.sin(p.y * p.freq + p.phase) * p.amp;
-		const driftProgress = Math.min(1, k * 2);
-		const baseX = p.originX + (p.targetX - p.originX) * k;
-		p.x = baseX + waveX * driftProgress + this._wind() * 30 * k;
-		p.x += (noise(p.seed, time * 4) - 0.5) * 0.6;
-	}
-
-	/* ── Draw a single particle ── */
-	_drawParticle(ctx, p, time, baseHue) {
-		const noise = TakibiEmbers._noise;
-		const k = p.life / p.max;
-		const hue = baseHue - k * 20 + p.hueShift;
-		const sat = 92 - k * 45;
-		const lig = 65 - k * 38;
-
-		const popK = Math.min(1, p.life / p.popDur);
-		const popBoost = popK < 1 ? 1.4 - popK * 0.4 : 1.0;
-		const flicker = 0.6 + noise(p.seed, time * 7 + p.seed) * 0.4;
-		const fadeIn = Math.min(1, p.life / 0.04);
-		const fadeOut = k > 0.6 ? ((1 - k) / 0.4) ** 1.3 : 1;
-		const alpha = fadeIn * fadeOut * flicker * popBoost;
-
-		if (alpha < 0.01) return;
-		const r = p.r * (1 - k * 0.45);
-		const PI2 = Math.PI * 2;
-
-		// Soft glow
-		const glowR = r * 3.5;
-		const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
-		grd.addColorStop(0, `hsla(${hue},${sat}%,${lig}%,${alpha * 0.65})`);
-		grd.addColorStop(0.3, `hsla(${hue},${sat}%,${lig}%,${alpha * 0.25})`);
-		grd.addColorStop(1, `hsla(${hue},${sat}%,${lig}%,0)`);
-		ctx.beginPath();
-		ctx.fillStyle = grd;
-		ctx.arc(p.x, p.y, glowR, 0, PI2);
-		ctx.fill();
-
-		// Bright core at birth
-		const coreAge = p.type === "pop" ? 0.3 : 0.15;
-		if (k < coreAge) {
-			const ci = 1 - k / coreAge;
-			const coreLig = Math.min(92, lig + 30 * ci);
-			const coreR = r * (0.35 + ci * 0.45);
-			ctx.beginPath();
-			ctx.fillStyle = `hsla(${hue + 10},${sat - 15}%,${coreLig}%,${alpha * 0.85 * ci})`;
-			ctx.arc(p.x, p.y, coreR, 0, PI2);
-			ctx.fill();
-		}
-	}
-
-	/* ── Main animation loop ── */
 	_tick(t) {
 		const dt = Math.min(0.05, (t - this._last) / 1000 || 0.016);
 		this._last = t;
-		const time = t / 1000;
+		this._time += dt;
 		const ctx = this._ctx;
 		const w = this._w;
 		const h = this._h;
-		const baseHue = 22 + this._hue();
-
-		ctx.clearRect(0, 0, w, h);
-		ctx.globalCompositeOperation = "lighter";
-
-		// Spawn clusters at irregular intervals
-		this._nextSpawn -= dt;
-		if (this._nextSpawn <= 0) {
-			this._spawnCluster();
-			this._nextSpawn = 0.15 + Math.random() * 0.5;
-		}
-
-		// Update & draw
-		const ps = this._particles;
-		for (let i = ps.length - 1; i >= 0; i--) {
-			const p = ps[i];
-			p.life += dt;
-			if (p.life / p.max >= 1) {
-				ps.splice(i, 1);
-				continue;
+		if (w && h) {
+			const scale = h / HEIGHT_M; // 1m が何 px か
+			const widthM = w / scale;
+			const wind = this._number("wind", 0, -1, 1) * 0.6;
+			const density = this._number("density", 45, 0, 300);
+			const light = this.closest("[data-theme]")?.getAttribute("data-theme") === "light";
+			// はぜる: 次までの時間は指数分布
+			this._next -= dt;
+			if (this._next <= 0 && density > 0) {
+				this._pop(1 + Math.floor(Math.random() ** 2 * 4), widthM);
+				this._next = -Math.log(1 - Math.random()) * (18 / density);
 			}
-
-			if (p.type === "pop") this._updatePop(p, dt, time);
-			else this._updateDrift(p, dt, time);
-
-			this._drawParticle(ctx, p, time, baseHue);
+			ctx.clearRect(0, 0, w, h);
+			ctx.globalCompositeOperation = light ? "source-over" : "lighter";
+			ctx.lineCap = "round";
+			for (let i = this._sparks.length - 1; i >= 0; i--) {
+				const s = this._sparks[i];
+				// 気流: はぜた場所の真上ほど速く、昇るほど遅く広くなる
+				const spread = 0.25 + s.y * 0.35;
+				const core = Math.exp(-(((s.x - s.x0) / spread) ** 2));
+				const gx = wind + gust(s.x, s.y, this._time, s.seed) * 0.35;
+				const gy = (1.5 * core) / (1 + s.y * 1.2) + 0.15;
+				// 空気の抵抗で、気流の速さに近づく。重さの分だけ落ちる
+				const k = 1 - Math.exp(-dt / (0.12 * s.mass));
+				s.vx += (gx - s.vx) * k;
+				s.vy += (gy - s.vy) * k - 1.2 * s.mass * dt;
+				s.x += s.vx * dt;
+				s.y += s.vy * dt;
+				// 冷える
+				s.T = 760 + (s.T - 760) * Math.exp(-dt / (2.6 * s.mass));
+				const [r, g, b] = planck(s.T);
+				if (r < 0.01 || s.y > HEIGHT_M + 0.1 || s.y < -0.2) {
+					this._sparks.splice(i, 1);
+					continue;
+				}
+				const px = w / 2 + s.x * scale;
+				const py = h - s.y * scale;
+				// 1/30 秒ぶんの軌跡
+				const tx = px - (s.vx * scale) / 30;
+				const ty = py + (s.vy * scale) / 30;
+				// 明るさを 0〜1 に収める。強い光は白へ寄る
+				// 目は暗い光ほど敏感なので、放射の強さの平方根を見た目の明るさにする
+				const gain = Math.sqrt(r) / r;
+				const tone = (v) => Math.round(255 * (1 - Math.exp(-v * gain * 2.4)));
+				const alpha = Math.min(1, Math.sqrt(r) * 2.2);
+				ctx.strokeStyle = light
+					? `rgba(${Math.round(tone(r) * 0.75)},${Math.round(tone(g) * 0.45)},${Math.round(tone(b) * 0.2)},${alpha * 0.8})`
+					: `rgba(${tone(r)},${tone(g)},${tone(b)},${alpha})`;
+				const width = (light ? 1 : 1.3) * (0.7 + 0.5 * s.mass);
+				ctx.beginPath();
+				ctx.moveTo(tx, ty);
+				ctx.lineTo(px, py);
+				if (!light) {
+					// 粒の周りのにじみ。線の 4 倍の太さで、濃さは 6 分の 1
+					ctx.globalAlpha = 1 / 6;
+					ctx.lineWidth = width * 4;
+					ctx.stroke();
+					ctx.globalAlpha = 1;
+				}
+				ctx.lineWidth = width;
+				ctx.stroke();
+			}
+			ctx.globalCompositeOperation = "source-over";
 		}
-
-		ctx.globalCompositeOperation = "source-over";
-		this._raf = requestAnimationFrame(this._tick);
+		this._raf = this._visible ? requestAnimationFrame(this._tick) : 0;
 	}
 }
 

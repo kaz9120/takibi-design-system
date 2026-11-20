@@ -118,7 +118,7 @@ export function TableHead({ className, sort, onSort, children, ...props }: Table
 					<ArrowUp
 						aria-hidden
 						className={cn(
-							"size-3.5 transition-[rotate,opacity,color] duration-(--duration-spring-press) ease-spring-press",
+							"size-3.5 [transition:rotate_var(--duration-sway)_var(--ease-sway),opacity_var(--duration-fast)_var(--ease-standard),color_var(--duration-fast)_var(--ease-standard)]",
 							sort === "descending" && "rotate-180",
 							sort === "none"
 								? "opacity-0 group-hover/sort:opacity-50 group-focus-visible/sort:opacity-50"

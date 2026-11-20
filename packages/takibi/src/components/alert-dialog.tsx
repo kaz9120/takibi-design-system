@@ -21,7 +21,7 @@ export function AlertDialogBackdrop({
 	return (
 		<BaseAlertDialog.Backdrop
 			data-slot="alert-dialog-backdrop"
-			className={cn("motion-backdrop fixed inset-0 z-50 bg-[rgb(10_9_7/0.6)] backdrop-blur-[2px]", className)}
+			className={cn("motion-backdrop fixed inset-0 z-50 bg-backdrop backdrop-blur-[2px]", className)}
 			{...props}
 		/>
 	);

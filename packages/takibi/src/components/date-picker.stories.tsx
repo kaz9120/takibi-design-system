@@ -44,7 +44,7 @@ const meta = {
 				"フォームで送る値は YYYY-MM-DD になる。期間では name に -from と -to を付けた 2 つの値になる",
 			],
 			motion: [
-				"月の表は、トリガーから 4px 離れた 0.94 倍の大きさから、ばね（spring-soft）で現れる（motion-rise）",
+				"月の表は、トリガーから 4px 離れた 0.94 倍の大きさから、はぜる曲線（ease-pop）で現れる（motion-rise）",
 				"開いている間、トリガーのカレンダーのアイコンがブランドカラーになる",
 			],
 			related: ["フォーム/Calendar", "フォーム/Field", "オーバーレイ/Popover"],

@@ -20,7 +20,7 @@ export function CommandDialog({ label = "コマンド", className, children, ...
 	return (
 		<BaseDialog.Root {...props}>
 			<BaseDialog.Portal>
-				<BaseDialog.Backdrop className="motion-backdrop fixed inset-0 z-50 bg-[rgb(10_9_7/0.6)] backdrop-blur-[2px]" />
+				<BaseDialog.Backdrop className="motion-backdrop fixed inset-0 z-50 bg-backdrop backdrop-blur-[2px]" />
 				<BaseDialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[min(18vh,9rem)]">
 					<BaseDialog.Popup
 						data-slot="command-dialog"

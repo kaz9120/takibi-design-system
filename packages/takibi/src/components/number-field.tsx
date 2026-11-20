@@ -177,7 +177,7 @@ function RollingNumber({ text, direction, active }: { text: string; direction: 1
 								animate="center"
 								exit="exit"
 								transition={{
-									y: springs.soft,
+									y: springs.ignite,
 									opacity: { duration: 0.12 },
 									color: { duration: 0.5, delay: 0.12, ease: [0.2, 0.8, 0.2, 1] },
 									textShadow: { duration: 0.5, delay: 0.12, ease: [0.2, 0.8, 0.2, 1] },
@@ -193,11 +193,29 @@ function RollingNumber({ text, direction, active }: { text: string; direction: 1
 	);
 }
 
+/**
+ * 色を rgb の 3 つの数に直す。空の色は、ブラウザが oklab() で返すので、そのままでは Motion が補間できない。
+ * 1px の canvas に塗って、塗られた色を読む
+ */
+function toRgb(color: string) {
+	if (!color) return null;
+	const canvas = document.createElement("canvas");
+	canvas.width = 1;
+	canvas.height = 1;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) return null;
+	ctx.fillStyle = color;
+	ctx.fillRect(0, 0, 1, 1);
+	const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+	return `${r}, ${g}, ${b}`;
+}
+
 /** 桁に付ける色を、今のテーマのトークンから読む。Motion は var() のままでは色を補間できない */
 function useEmberColors(ref: React.RefObject<HTMLElement | null>, active: boolean) {
+	// トークンを読むまでの初期値。夜のテーマの brand と fg に合わせてある
 	const [colors, setColors] = React.useState({
 		brand: "rgb(244, 125, 58)",
-		fg: "rgb(235, 229, 216)",
+		fg: "rgb(225, 230, 236)",
 		glow: "rgba(244, 125, 58, 0.6)",
 		clear: "rgba(244, 125, 58, 0)",
 	});
@@ -207,9 +225,17 @@ function useEmberColors(ref: React.RefObject<HTMLElement | null>, active: boolea
 		const el = ref.current;
 		if (!el) return;
 		const style = getComputedStyle(el);
-		const brand = style.getPropertyValue("--color-brand").trim();
-		const fg = style.color;
-		if (brand) setColors((c) => (c.brand === brand && c.fg === fg ? c : { ...c, brand, fg }));
+		const brand = toRgb(style.getPropertyValue("--color-brand").trim());
+		const fg = toRgb(style.color);
+		if (!brand || !fg) return;
+		// 光の色もブランドカラーから作る。昼のテーマでは、夜より暗いブランドカラーに合わせる
+		const next = {
+			brand: `rgb(${brand})`,
+			fg: `rgb(${fg})`,
+			glow: `rgba(${brand}, 0.6)`,
+			clear: `rgba(${brand}, 0)`,
+		};
+		setColors((c) => (c.brand === next.brand && c.fg === next.fg ? c : next));
 	}, [ref, active]);
 	return colors;
 }

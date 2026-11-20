@@ -70,12 +70,12 @@ const Digit = React.forwardRef<HTMLSpanElement, { digit: number; reduce: boolean
 			initial={reduce ? false : enter}
 			animate={rest}
 			exit={reduce ? undefined : exit}
-			transition={springs.soft}
+			transition={springs.ignite}
 			data-glow={glowing || undefined}
 			className={cn(
 				"relative inline-block h-[1lh] overflow-x-visible overflow-y-clip",
 				"transition-[color,text-shadow] duration-[900ms] ease-standard",
-				"data-glow:text-brand data-glow:duration-(--duration-fast) data-glow:[text-shadow:0_0_12px_rgb(244_125_58/0.65)]",
+				"data-glow:text-brand data-glow:duration-(--duration-fast) data-glow:[text-shadow:0_0_12px_color-mix(in_oklab,var(--color-heat-ember)_65%,transparent)]",
 			)}
 		>
 			{/* 幅を決めるための見えない数字 */}
@@ -84,7 +84,7 @@ const Digit = React.forwardRef<HTMLSpanElement, { digit: number; reduce: boolean
 				className="absolute inset-x-0 top-0 flex flex-col items-center"
 				initial={false}
 				animate={{ y: `${digit * -10}%` }}
-				transition={reduce ? { duration: 0 } : springs.soft}
+				transition={reduce ? { duration: 0 } : springs.ignite}
 			>
 				{digits.map((n) => (
 					<span key={n} className="h-[1lh]">
@@ -107,7 +107,7 @@ const Glyph = React.forwardRef<HTMLSpanElement, { char: string; reduce: boolean 
 			initial={reduce ? false : enter}
 			animate={rest}
 			exit={reduce ? undefined : exit}
-			transition={springs.soft}
+			transition={springs.ignite}
 			className="inline-block whitespace-pre"
 		>
 			{char}

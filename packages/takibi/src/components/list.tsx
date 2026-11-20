@@ -57,7 +57,7 @@ export function InteractiveList({ className, ...props }: React.ComponentProps<"u
 }
 
 /**
- * 1 行。hover で背景の色が付き、押すと行全体が 0.98 倍に縮み、離すとばねで戻る。
+ * 1 行。hover で背景の色が付き、押すと行全体が 0.98 倍に縮み、離すと載る曲線で戻る。
  * 右端の操作（ListItemTrailing の中のボタン）を押したときは、行は縮まない。
  */
 export function InteractiveListItem({ className, ...props }: React.ComponentProps<"li">) {
@@ -66,7 +66,7 @@ export function InteractiveListItem({ className, ...props }: React.ComponentProp
 			data-slot="interactive-list-item"
 			className={cn(
 				"group/row relative isolate flex items-center gap-3 rounded-md px-3 py-2.5",
-				"[transition:background-color_var(--duration-fast)_var(--ease-standard),scale_var(--duration-spring-press)_var(--ease-spring-press)]",
+				"[transition:background-color_var(--duration-fast)_var(--ease-standard),scale_var(--duration-land)_var(--ease-land)]",
 				"has-[[data-slot=list-item-button]:hover]:bg-surface-hover",
 				"has-[[data-slot=list-item-button]:active]:scale-(--press-scale-surface)",
 				"has-[[data-slot=list-item-button]:active]:[transition:background-color_var(--duration-fast)_var(--ease-standard),scale_150ms_var(--ease-out-expo)]",
@@ -167,7 +167,7 @@ export function ListItemChevron({ className, ...props }: React.ComponentProps<ty
 			aria-hidden
 			className={cn(
 				"pointer-events-none ml-auto size-4 shrink-0 text-fg-subtle",
-				"transition-[translate,color] duration-(--duration-spring-snappy) ease-spring-snappy",
+				"transition-[translate,color] duration-(--duration-pop) ease-pop",
 				"group-has-[[data-slot=list-item-button]:hover]/row:translate-x-0.5 group-has-[[data-slot=list-item-button]:hover]/row:text-fg-muted",
 				className,
 			)}

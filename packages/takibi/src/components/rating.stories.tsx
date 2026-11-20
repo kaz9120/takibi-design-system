@@ -31,8 +31,8 @@ const meta = {
 			],
 			motion: [
 				"ポインターを乗せると、そこまでの星がブランドカラーの薄い色で塗られ、選択後の状態をプレビューする",
-				"星は hover で 1.15 倍、押すと 0.85 倍になる（spring-press）",
-				"選んだ星は 1.4 倍の大きさと -8° の傾きから、ばね（spring-snappy）で元に戻る",
+				"星は hover で 1.15 倍、押すと 0.85 倍になる（ease-land）",
+				"選んだ星は 1.4 倍の大きさと -8° の傾きから、はぜる曲線（ease-pop）で元に戻る",
 			],
 			related: ["フォーム/RadioGroup", "フォーム/Field"],
 		} satisfies ComponentDocs,

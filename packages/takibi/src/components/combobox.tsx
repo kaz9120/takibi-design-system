@@ -84,7 +84,7 @@ export function ComboboxInput({
 					aria-label="候補を開く"
 					className={cn(trailingButtonClass)}
 				>
-					<ChevronDown className="size-4 transition-[rotate] duration-(--duration-spring-press) ease-spring-press [[data-popup-open]>&]:rotate-180" />
+					<ChevronDown className="size-4 transition-[rotate] duration-(--duration-sway) ease-sway [[data-popup-open]>&]:rotate-180" />
 				</BaseCombobox.Trigger>
 			</span>
 		</BaseCombobox.InputGroup>
@@ -175,7 +175,7 @@ export function ComboboxChips({
 				aria-label="候補を開く"
 				className={cn(trailingButtonClass, "self-start")}
 			>
-				<ChevronDown className="size-4 transition-[rotate] duration-(--duration-spring-press) ease-spring-press [[data-popup-open]>&]:rotate-180" />
+				<ChevronDown className="size-4 transition-[rotate] duration-(--duration-sway) ease-sway [[data-popup-open]>&]:rotate-180" />
 			</BaseCombobox.Trigger>
 		</BaseCombobox.InputGroup>
 	);
@@ -208,7 +208,7 @@ export function ComboboxChip({ className, children, removeLabel, ...props }: Com
 							? { opacity: 0, transition: { duration: 0 } }
 							: { opacity: 0, scale: 0.8, transition: { duration: 0.12, ease: [0.16, 1, 0.3, 1] } }
 					}
-					transition={springs.snappy}
+					transition={springs.pop}
 				/>
 			}
 			{...props}

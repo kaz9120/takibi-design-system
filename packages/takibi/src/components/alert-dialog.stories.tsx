@@ -55,7 +55,7 @@ const meta = {
 				"背景を押しても閉じない。ボタンか Esc で選ぶまで後ろの画面は操作できない",
 			],
 			motion: [
-				"開くときは、12px 下で 0.96 倍、4px ぼけた状態から、ばね（spring-soft）で浮かび上がる（motion-dialog）",
+				"開くときは、12px 下で 0.96 倍、4px ぼけた状態から、着火の曲線（ease-ignite）で浮かび上がる（motion-dialog）",
 				"閉じるときは 6px 下へ沈みながら、180ms（ease-out-expo）で消える",
 				"背景は 200ms で暗くなり、後ろを 2px ぼかす（motion-backdrop）",
 			],

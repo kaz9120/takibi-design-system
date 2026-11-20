@@ -86,7 +86,7 @@ export function Link({
 									"ml-0.5 inline-block size-[0.9em] align-[-0.1em]",
 									"transition-[translate] duration-150 ease-out-expo",
 									"group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5",
-									"group-hover/link:duration-(--duration-spring-snappy) group-hover/link:ease-spring-snappy",
+									"group-hover/link:duration-(--duration-pop) group-hover/link:ease-pop",
 								)}
 							/>
 							<span className="sr-only">（新しいタブで開く）</span>

@@ -5,6 +5,7 @@
 			"**",
 			"!**/node_modules",
 			"!notes",
+			"!labs",
 			"!**/storybook-static",
 			"!**/dist",
 			"!**/build",

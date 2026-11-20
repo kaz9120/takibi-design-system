@@ -16,7 +16,7 @@ export type SliderProps = React.ComponentProps<typeof BaseSlider.Root> & {
 /**
  * 範囲の中から値を選ぶ。おおよその値でよいときに使い、正確な数を入れさせるときは NumberField を使う。
  * `defaultValue` に配列を渡すと、ハンドルが 2 つの範囲の選択になる。
- * ハンドルは押すと少し膨らみ、離すとばねで戻る。値の帯はブランドカラーで塗る。
+ * ハンドルは押すと少し膨らみ、離すと載る曲線で戻る。値の帯はブランドカラーで塗る。
  */
 export function Slider({
 	className,
@@ -64,7 +64,7 @@ export function Slider({
 							"rounded-full bg-brand select-none",
 							"group-hover/slider:not-group-data-disabled/slider:bg-brand-hover",
 							// キーで動かすと帯の端が滑って追う。指で動かしている間は遅れずに付いてくる
-							"transition-[inset-inline-start,width,height,background-color] duration-(--duration-spring-glide) ease-spring-glide group-data-dragging/slider:transition-[background-color]",
+							"transition-[inset-inline-start,width,height,background-color] duration-(--duration-sway) ease-sway group-data-dragging/slider:transition-[background-color]",
 							"group-data-invalid/slider:bg-danger",
 						)}
 					/>
@@ -101,7 +101,7 @@ function SliderThumb({
 			index={index}
 			className={cn(
 				"group/thumb relative flex size-5 items-center justify-center rounded-full outline-none select-none data-disabled:cursor-not-allowed",
-				"transition-[inset-inline-start,bottom] duration-(--duration-spring-glide) ease-spring-glide group-data-dragging/slider:transition-none",
+				"transition-[inset-inline-start,bottom] duration-(--duration-sway) ease-sway group-data-dragging/slider:transition-none",
 			)}
 			render={(thumbProps, state) => {
 				const active = state.dragging && state.activeThumbIndex === index;
@@ -113,18 +113,18 @@ function SliderThumb({
 							aria-hidden
 							className={cn(
 								"pointer-events-none absolute inset-0 rounded-full bg-brand-soft opacity-0 scale-50",
-								"transition-[opacity,scale] duration-(--duration-spring-soft) ease-spring-soft",
+								"transition-[opacity,scale] duration-(--duration-ignite) ease-ignite",
 								"group-hover/thumb:not-group-data-disabled/slider:scale-150 group-hover/thumb:not-group-data-disabled/slider:opacity-100",
 								"group-has-focus-visible/thumb:scale-175 group-has-focus-visible/thumb:opacity-100",
 								"group-data-active/thumb:scale-200 group-data-active/thumb:opacity-100",
 							)}
 						/>
-						{/* ハンドル本体。押すと膨らみ、離すとばねで戻る */}
+						{/* ハンドル本体。押すと膨らみ、離すと載る曲線で戻る */}
 						<span
 							aria-hidden
 							className={cn(
 								"pointer-events-none relative size-4 rounded-full border-2 border-brand bg-thumb shadow-[0_1px_3px_rgb(0_0_0/0.35)]",
-								"transition-[scale,border-color] duration-(--duration-spring-press) ease-spring-press",
+								"transition-[scale,border-color] duration-(--duration-land) ease-land",
 								"group-active/thumb:not-group-data-disabled/slider:scale-125 group-data-active/thumb:scale-125",
 								"group-has-focus-visible/thumb:outline-2 group-has-focus-visible/thumb:outline-offset-2 group-has-focus-visible/thumb:outline-focus",
 								"group-data-invalid/slider:border-danger",
@@ -137,7 +137,7 @@ function SliderThumb({
 								className={cn(
 									"pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 origin-bottom",
 									"rounded-sm border border-line bg-surface-overlay px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-fg-strong tabular-nums shadow-card",
-									"transition-[opacity,scale,translate] duration-(--duration-spring-soft) ease-spring-soft",
+									"transition-[opacity,scale,translate] duration-(--duration-ignite) ease-ignite",
 									showValue === "drag" && [
 										"translate-y-1 scale-90 opacity-0",
 										"group-data-active/thumb:translate-y-0 group-data-active/thumb:scale-100 group-data-active/thumb:opacity-100",

@@ -29,7 +29,7 @@ const meta = {
 				"フォーカスが当たると、ほかの要素より手前に表示される",
 			],
 			motion: [
-				"フォーカスが当たると、左上の外から 510ms、ease-spring-soft で定位置へ動いて現れる",
+				"フォーカスが当たると、左上の外から 510ms、ease-ignite で定位置へ動いて現れる",
 				"フォーカスが外れると、150ms、ease-out-expo で左上の外へ戻って消える",
 			],
 			related: ["ナビゲーション/Link", "ナビゲーション/NavigationMenu"],

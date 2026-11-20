@@ -77,7 +77,9 @@ export function Meter({
 								"h-1.5 flex-1 rounded-full bg-surface-sunken shadow-[inset_0_0_0_1px_var(--color-line-subtle)]",
 								"transition-[background-color,box-shadow] duration-(--duration-slow) ease-standard",
 								"data-lit:shadow-none",
-								lit && level === segments && "shadow-[0_0_10px_rgb(244_125_58/0.35)]!",
+								lit &&
+									level === segments &&
+									"shadow-[0_0_10px_color-mix(in_oklab,var(--color-heat-ember)_35%,transparent)]!",
 							)}
 							style={{
 								backgroundColor: lit ? color : undefined,

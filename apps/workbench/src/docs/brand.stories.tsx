@@ -14,7 +14,9 @@ type Story = StoryObj<typeof meta>;
 
 /**
  * 火の粉。`import "takibi-design-system/embers"` で `<takibi-embers>` が使えるようになる。
- * 親に position: relative が要る。無限ループを許すのはこれだけで、1 画面に 1 つまで。
+ * 動き方は焚き火の計算モデルの火の粉と同じ式で、要素の高さを 1.8m として計算する。飛び出した粒は 0.12 秒ほどで気流に乗り、
+ * 冷えるにつれて黄から赤へ変わり、小さい粒は 0.8 秒、大きい粒は 2.4 秒ほどで消える。1/30 秒ぶんの軌跡を線で描く。
+ * 親に position: relative が要る。炎（`<takibi-fire>`）と合わせて 1 画面に 1 つまで。
  * 動きを減らす設定では、火の粉を描かずに下からのグローだけを残す。
  */
 export const Embers: Story = {

@@ -72,7 +72,7 @@ export function Banner({
 				data-slot="banner-fold"
 				className={cn(
 					"overflow-hidden",
-					"h-(--collapsible-panel-height) transition-[height] duration-(--duration-spring-glide) ease-spring-glide",
+					"h-(--collapsible-panel-height) transition-[height] duration-(--duration-sway) ease-sway",
 					"data-starting-style:h-0 data-ending-style:h-0",
 					// 閉じるときは開くときと同じ形のまま、少しだけ速くたたむ
 					"data-ending-style:duration-[260ms]",

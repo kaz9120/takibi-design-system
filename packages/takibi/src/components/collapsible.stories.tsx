@@ -36,8 +36,8 @@ const meta = {
 			],
 			a11y: ["ボタンは、開いているかどうかを aria-expanded で読み上げる"],
 			motion: [
-				"中身は高さ 0 から伸び、閉じるときも同じ曲線で縮む（motion-fold、spring-glide の 330ms）",
-				"ボタンは押すと 0.97 倍に縮み（motion-press）、矢印は開くと 180 度回る（spring-press の 460ms）",
+				"中身は高さ 0 から伸び、閉じるときも同じ曲線で縮む（motion-fold、ease-sway の 330ms）",
+				"ボタンは押すと 0.97 倍に縮み（motion-press）、矢印は開くと 180 度回る（ease-sway の 330ms）",
 			],
 			related: ["データ表示/Accordion", "オーバーレイ/Popover"],
 		} satisfies ComponentDocs,

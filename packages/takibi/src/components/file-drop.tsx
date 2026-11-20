@@ -173,7 +173,7 @@ export function FileDrop({
 								size === "md" ? "size-11 [&_svg]:size-5" : "size-8 [&_svg]:size-4",
 							)}
 							animate={dragging && !reduce ? { y: -4, scale: 1.08 } : { y: 0, scale: 1 }}
-							transition={springs.press}
+							transition={springs.land}
 						>
 							<Upload />
 						</motion.span>
@@ -241,7 +241,7 @@ function FileDropItem({
 					? { opacity: 0, transition: { duration: 0 } }
 					: { opacity: 0, y: -8, filter: "blur(2px)", transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }
 			}
-			transition={springs.soft}
+			transition={springs.ignite}
 			className="flex items-center gap-3 rounded-md border border-line bg-surface-raised py-1.5 pr-1.5 pl-1.5 shadow-rim"
 		>
 			<span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-surface-sunken text-fg-muted">

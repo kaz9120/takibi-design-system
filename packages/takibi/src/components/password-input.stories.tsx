@@ -35,7 +35,7 @@ const meta = {
 				"マウスで切り替えても、入力欄のフォーカスとカーソルの位置は動かない",
 			],
 			motion: [
-				"切り替えると、目のアイコンが 0.5 倍に縮みながらぼけて消え、次のアイコンがばね（spring-snappy）で現れる",
+				"切り替えると、目のアイコンが 0.5 倍に縮みながらぼけて消え、次のアイコンがはぜる曲線（ease-pop）で現れる",
 			],
 			related: ["フォーム/Input", "フォーム/InputGroup", "フォーム/Field", "フォーム/Form"],
 		} satisfies ComponentDocs,

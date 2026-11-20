@@ -36,7 +36,7 @@ export function Avatar({ className, size, ...props }: AvatarProps) {
 			className={cn(
 				avatarVariants({ size: size ?? group.size }),
 				group.grouped &&
-					"ring-2 ring-surface transition-[translate] duration-(--duration-spring-press) ease-spring-press hover:z-10 hover:-translate-y-0.5",
+					"ring-2 ring-surface transition-[translate] duration-(--duration-land) ease-land hover:z-10 hover:-translate-y-0.5",
 				className,
 			)}
 			{...props}

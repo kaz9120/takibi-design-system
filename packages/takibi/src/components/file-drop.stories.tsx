@@ -46,8 +46,8 @@ const meta = {
 			],
 			motion: [
 				"ファイルを重ねると、枠が実線になってブランドカラーになり、面がブランドカラーの薄い色になる（200ms、ease-ember）",
-				"重ねている間、矢印のアイコンが 4px 上がって 1.08 倍になる（spring-press）",
-				"一覧に加わったファイルは 8px 下から現れ（spring-soft）、外すと 8px 上へぼけて 200ms で消える（煙）",
+				"重ねている間、矢印のアイコンが 4px 上がって 1.08 倍になる（ease-land）",
+				"一覧に加わったファイルは 8px 下から現れ（ease-ignite）、外すと 8px 上へぼけて 200ms で消える（煙）",
 			],
 			related: ["フォーム/Field", "フォーム/Form", "データ表示/Image"],
 		} satisfies ComponentDocs,

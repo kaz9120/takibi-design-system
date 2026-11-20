@@ -53,7 +53,7 @@ const meta = {
 			],
 			motion: [
 				"写真は読み込み終わると、4px のぼかしと透明の状態から 360ms で現れる（ease-standard）",
-				"AvatarGroup の中では、hover した人だけが 2px 浮く（spring-press）",
+				"AvatarGroup の中では、hover した人だけが 2px 浮く（ease-land）",
 				"状態の点の色は 200ms で切り替わる",
 			],
 			related: ["データ表示/Badge", "データ表示/Image"],

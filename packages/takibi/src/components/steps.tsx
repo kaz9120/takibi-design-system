@@ -178,7 +178,7 @@ function StepConnector({ filled, orientation }: { filled: boolean; orientation: 
 				{/* 導火線の先端。伸びている間の 0.7 秒だけ明るい点が出る */}
 				<motion.span
 					className={cn(
-						"absolute size-1.5 rounded-full bg-(--ember-100) shadow-[0_0_8px_2px_rgb(251_193_137/0.7)]",
+						"absolute size-1.5 rounded-full bg-heat-core shadow-[0_0_8px_2px_color-mix(in_oklab,var(--color-heat-flame)_70%,transparent)]",
 						horizontal
 							? "top-1/2 right-0 translate-x-1/2 -translate-y-1/2"
 							: "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",

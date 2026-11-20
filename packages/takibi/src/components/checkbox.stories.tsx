@@ -41,7 +41,7 @@ const meta = {
 				"一部だけ入れた状態も、スクリーンリーダーで区別できる（aria-checked が mixed になる）",
 			],
 			motion: [
-				"押すと 0.92 倍に沈み、離すとばね（spring-press）で戻る（motion-press-icon）",
+				"押すと 0.92 倍に沈み、離すと載る曲線（ease-land）で戻る（motion-press-icon）",
 				"入れるとチェックマークの線が 220ms で描かれ、外すと線が 140ms で戻って消える（motion-draw）",
 			],
 			related: ["フォーム/CheckboxGroup", "フォーム/Switch", "フォーム/RadioGroup", "フォーム/Field"],

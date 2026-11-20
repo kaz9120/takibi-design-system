@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"description": "焚き火を愛するエンジニアのプロダクトと発信を、1 つの言葉と見た目でそろえるためのデザインシステム",
-	"license": "MIT",
+	"license": "MIT AND CC-BY-SA-4.0",
 	"homepage": "https://design-system.y-kaz.com",
 	"repository": {
 		"type": "git",
@@ -13,7 +13,9 @@
 	"bugs": "https://github.com/kaz9120/takibi-design-system/issues",
 	"sideEffects": [
 		"**/*.css",
-		"./src/embers.js"
+		"./src/embers.js",
+		"./src/fire.js",
+		"./src/stars.js"
 	],
 	"exports": {
 		".": "./src/index.ts",
@@ -28,13 +30,23 @@
 			"types": "./src/embers.d.ts",
 			"default": "./src/embers.js"
 		},
+		"./fire": {
+			"types": "./src/fire.d.ts",
+			"default": "./src/fire.js"
+		},
+		"./stars": {
+			"types": "./src/stars.d.ts",
+			"default": "./src/stars.js"
+		},
 		"./assets/*": "./assets/*"
 	},
 	"files": [
 		"src",
 		"!src/**/*.stories.tsx",
+		"!src/components/samples",
 		"dist",
-		"assets"
+		"assets",
+		"LICENSES"
 	],
 	"scripts": {
 		"build:tokens": "bun scripts/tokens.mjs",

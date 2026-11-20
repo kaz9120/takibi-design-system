@@ -76,7 +76,7 @@ export function Progress({ className, value, label, showValue, size = "md", ...p
 							aria-hidden
 							className={cn(
 								"absolute top-1/2 right-0 h-[calc(100%+4px)] w-4 -translate-y-1/2 rounded-full",
-								"bg-linear-to-r from-transparent to-(--ember-100) blur-[2px] motion-fuse",
+								"bg-linear-to-r from-transparent to-heat-core blur-[2px] motion-fuse",
 							)}
 						/>
 					</BaseProgress.Indicator>

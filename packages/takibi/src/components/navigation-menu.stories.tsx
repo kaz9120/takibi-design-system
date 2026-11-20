@@ -61,10 +61,10 @@ const meta = {
 				'今のページの項目に aria-current="page" が付く',
 			],
 			motion: [
-				"パネルは 0.96 倍から薄く現れて開き（330ms、ease-spring-glide）、閉じるときは 150ms、ease-out-expo で引く",
+				"パネルは 0.96 倍から薄く現れて開き（330ms、ease-sway）、閉じるときは 150ms、ease-out-expo で引く",
 				"隣の項目へ移ると、パネルの位置と幅と高さが 330ms で新しい中身に合わせて変わる",
 				"中身は進んだ向きから幅の 1/4 だけ寄りながら現れ、前の中身は反対へ抜けながら 2px ぼけて消える",
-				"開いている項目の下の背景は、項目から項目へ滑って移る（springs.glide）。矢印は 180 度回る",
+				"開いている項目の下の背景は、項目から項目へ滑って移る（springs.sway）。矢印は 180 度回る",
 			],
 			related: ["ナビゲーション/NavList", "オーバーレイ/Menubar", "ナビゲーション/Link"],
 		} satisfies ComponentDocs,

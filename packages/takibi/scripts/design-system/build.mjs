@@ -95,7 +95,8 @@ function roleUsage(name) {
 	if (name.endsWith("-hover")) return `${name.replace(/^color-|-hover$/g, "")} の hover のとき`;
 	if (name.endsWith("-active")) return `${name.replace(/^color-|-active$/g, "")} を押している間`;
 	if (name.endsWith("-soft")) return `${name.replace(/^color-|-soft$/g, "")} の状態を知らせる面の背景`;
-	if (name.startsWith("color-chart-")) return "グラフの系列の色。番号の順に使い、暖色が隣り合わないよう寒色を挟んである";
+	if (name.startsWith("color-chart-"))
+		return "グラフの系列の色。番号の順に使い、暖色が隣り合わないよう寒色を挟んである";
 	return name.replace(/^color-/, "");
 }
 
@@ -201,7 +202,10 @@ run("bunx", ["--bun", "vite", "build", "-c", path.join(here, "vite.config.mjs")]
 	// 公開の窓口は U+FFFD をそのまま受け付けないので、文字列の中のエスケープに置き換える
 	js = js.replaceAll("�", "\\uFFFD");
 	if (/<\/script/i.test(js)) throw new Error("bundle.js に </script があります");
-	const header = { format: 4, namespace: NAMESPACE, components: components.filter((c) => c.exported).map((c) => ({ name: c.name })),
+	const header = {
+		format: 4,
+		namespace: NAMESPACE,
+		components: components.filter((c) => c.exported).map((c) => ({ name: c.name })),
 	};
 	js = `/* @ds-bundle: ${JSON.stringify(header)} */\n${js}`;
 	if (Buffer.byteLength(js) > 6 * 1024 * 1024) throw new Error("bundle.js が 6 MB を超えました");

@@ -52,7 +52,7 @@ export function EmptyStateIcon({ className, ...props }: EmptyStateIconProps) {
 			data-slot="empty-state-icon"
 			initial={reduce ? false : { opacity: 0, y: 8, scale: 0.92, filter: "blur(4px)" }}
 			animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-			transition={springs.soft}
+			transition={springs.ignite}
 			className={cn(
 				"relative flex items-center justify-center rounded-full border border-line-subtle bg-surface-raised text-fg-muted",
 				"shadow-[var(--shadow-rim),var(--shadow-glow-soft)]",

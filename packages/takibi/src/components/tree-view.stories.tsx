@@ -38,9 +38,9 @@ const meta = {
 				"無効の項目には aria-disabled が付き、選べない",
 			],
 			motion: [
-				"親項目を開くと、矢印が 90 度回り（springs.snappy）、子の一覧の高さが広がってフェードインする（springs.glide、200ms）",
+				"親項目を開くと、矢印が 90 度回り（springs.pop）、子の一覧の高さが広がってフェードインする（springs.sway、200ms）",
 				"閉じるときは、180ms、ease-out-expo で高さがたたまれる",
-				"選んだ項目の背景（ブランドカラーの薄い色）は、前の項目から滑って移る（springs.glide）。動きを減らす設定では動かさない",
+				"選んだ項目の背景（ブランドカラーの薄い色）は、前の項目から滑って移る（springs.sway）。動きを減らす設定では動かさない",
 			],
 			related: ["ナビゲーション/NavList", "データ表示/Accordion", "データ表示/Collapsible"],
 		} satisfies ComponentDocs,

@@ -58,8 +58,8 @@ const meta = {
 				"先頭のアイコンは飾りなので、入力欄に aria-label か Field のラベルで名前を付ける",
 			],
 			motion: [
-				"候補の一覧は、入力欄から 4px 離れた 0.94 倍の大きさから、ばね（spring-soft）で現れる（motion-rise）",
-				"候補の間を移ると、背景の帯がばね（spring-glide）で滑って付いてくる",
+				"候補の一覧は、入力欄から 4px 離れた 0.94 倍の大きさから、はぜる曲線（ease-pop）で現れる（motion-rise）",
+				"候補の間を移ると、背景の帯が揺れる曲線（ease-sway）で滑って付いてくる",
 				"消去ボタンは文字があるときだけ、0.5 倍の大きさのぼけた状態から現れる（motion-swap）",
 			],
 			related: ["フォーム/Combobox", "フォーム/InputGroup", "フォーム/Select"],

@@ -32,7 +32,7 @@ export function Radio({ className, ...props }: React.ComponentProps<typeof BaseR
 				data-slot="radio-indicator"
 				className={cn(
 					"size-2 rounded-full bg-brand",
-					"transition-[scale,opacity] duration-(--duration-spring-snappy) ease-spring-snappy",
+					"transition-[scale,opacity] duration-(--duration-pop) ease-pop",
 					"data-starting-style:scale-0 data-starting-style:opacity-0",
 					"data-ending-style:scale-0 data-ending-style:opacity-0 data-ending-style:duration-(--duration-fast) data-ending-style:ease-out-expo",
 				)}

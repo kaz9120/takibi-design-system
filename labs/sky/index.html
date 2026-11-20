@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>空のモデル</title>
+<!--
+  空の本気モデル（試作）。太陽の高度という 1 つの値から、空の色、見える星、天の川を計算して描く。
+  夜明け、日暮れ、星空は、同じモデルの別の時刻。
+
+  物理から計算している所:
+  - 空の色: Rayleigh 散乱、Mie 散乱、オゾンの吸収を、視線に沿って積分する。太陽が地平線の下にあるときは、
+    地球の影に入った空気を光らせない。多重散乱は Hillaire (2020) の近似で足す。
+    計算は RGB の 3 色ではなく、380〜730 nm を 12 等分した波長で行い、CIE 1931 の等色関数で XYZ にしてから
+    sRGB に直す。RGB の 3 色だけで計算すると、オゾンが緑を強く吸うので、薄明の空が青ではなく紫になる
+    （「波長の数」を 3 にすると確かめられる）。
+      Rayleigh 散乱 1.24062e-6 × λ^-4 /m（λ は µm）、高さの尺度 8 km
+      Mie 散乱 3.996e-3 /km、Mie 消散 4.44e-3 /km（波長によらない）、高さの尺度 1.2 km、位相関数 Cornette–Shanks g = 0.8
+      オゾン 全量 300 DU、高度 25 km を頂点に上下 15 km で 0 になる三角形の分布。吸収断面積は 233 K の実測の表
+      太陽のスペクトル ASTM G-173 の大気圏外の値
+      地球の半径 6360 km、大気の上端 6460 km、地面の反射率 0.3
+    出典: S. Hillaire, "A Scalable and Production Ready Sky and Atmosphere Rendering Technique", EGSR 2020
+          https://github.com/sebh/UnrealEngineSkyAtmosphere （SkyAtmosphereCommon.cpp、RenderSkyRayMarching.hlsl）
+          E. Bruneton, https://github.com/ebruneton/precomputed_atmospheric_scattering
+          （demo.cc の太陽のスペクトルとオゾンの表、constants.h の等色関数と XYZ→sRGB の行列、透過率の表の座標）
+          この 2 つの著作権表示とライセンスの全文は、同じフォルダの THIRD-PARTY-NOTICES.md にある
+  - 太陽の位置: Astronomical Almanac の近似式（https://en.wikipedia.org/wiki/Position_of_the_Sun）
+  - 恒星時: GMST = 18.697375 + 24.065709824279 × D 時（https://aa.usno.navy.mil/faq/GAST）
+  - 星: HYG Database v4.4（David Nash、CC BY-SA 4.0）の 6.5 等より明るい 8920 個（stars.js。出典と改変の内容はファイルの先頭）。赤経・赤緯を、観測地と日時から方位と高度に直す。
+    明るさは等級から決める。太陽を −26.74 等として、太陽の照度に対する比 10^(−0.4 (m + 26.74)) を使う。
+    明るい星は、頂点の明るさが画面の白の 3 倍を超えないように、光の量を保ったまま広げる（最大で標準偏差 3.5 画素）。
+    空の明るさと同じ単位なので、薄明の空に星が埋もれて見えなくなる順番は、計算の結果として出る。
+  - 星の色: B−V から温度へ（Ballesteros 2012: T = 4600 (1/(0.92 BV + 1.7) + 1/(0.92 BV + 0.62))、
+    https://en.wikipedia.org/wiki/Color_index）。その温度の黒体放射のスペクトルを、空と同じ等色関数で sRGB にする。
+  - 大気による星の減光: 空と同じ式で作った 610、550、465 nm の透過率の表を、星の高度で引く。低い星ほど暗く、青が先に減って赤くなる。
+  - 限界等級の表示: 天頂の空の明るさ（等級/平方秒角）から Crumey (2014) の式で求める
+    （https://en.wikipedia.org/wiki/Limiting_magnitude、観察者の係数 F = 2）。
+
+  近似や、手で決めた所:
+  - 天の川: 6.5 等までの星では帯にならない。銀河の円盤を「星の密度が指数関数で減る円盤 + 中心のふくらみ + 薄い塵の層」
+    として、太陽の位置から各方向へ視線に沿って積分し、銀河座標の 1024×512 の表に焼いた。
+    円盤の尺度（長さ 2.6 kpc、厚さ 0.3 kpc、太陽から中心まで 8.2 kpc）は Bland-Hawthorn & Gerhard (2016) の値を
+    記憶で使っていて、原文との照合はできていない。塵の減光は太陽の近くで平均 1.8 等/kpc
+    （https://en.wikipedia.org/wiki/Extinction_(astronomy)）。塵の雲のむら（乱数の雑音）、星の密度のむら、ふくらみの大きさ、
+    全体の明るさ（銀経 20〜50°、銀緯 ±5° の中央値を 21.0 等/平方秒角に合わせた）は手で決めた。
+  - 夜の空の下限: 22 等/平方秒角（https://en.wikipedia.org/wiki/Limiting_magnitude にある最も暗い空の値）の
+    大気光を、高度 90 km の薄い層として足した。色は手で決めた。
+  - またたき: 強さは 大気の厚さ^1.5 に比例させた（小さい口径では分散が sec^3 z に比例する、という Young 1967 /
+    Dravins ほか 1997 の結果を記憶で使っていて、原文との照合はできていない）。天頂での強さと、時間の変化
+    （2〜18 Hz の 4 つの波の和）は手で決めた。
+  - 露出: 天頂と、高度 20° の 4 方位の空の明るさを 1 画素ずつ計算して読み、その対数の平均の 0.235 乗に比例する
+    明るさで表示する。0.235 という指数は手で決めた（人の目の順応をまねるため）。
+  - 暗い所での色の見え方: 0.001 cd/m^2 より暗い画素を青みがかった無彩色にし、0.3 cd/m^2 までの間で色を戻す。明るさを感じる細胞の応答は
+    V = Y (1.33 (1 + (Y + Z) / X) − 1.68) で近似した（Jensen ほか 2001 "A Physically-Based Night Sky Model" などで
+    使われている式を記憶で使っていて、原文との照合はできていない）。色みと、切り替わる明るさの範囲は手で決めた。
+  - 多重散乱は等方散乱を仮定した近似なので、太陽が −6° より低い薄明では実際より暗く出る見込み。
+  - 大気の屈折（地平線で約 0.57°）、月、惑星、黄道光、歳差（J2000 から約 0.37°）は入れていない。
+  - 地平線の山と木立は、乱数で作った輪郭。
+-->
+<style>
+  :root {
+    --bg: #0a0907;
+    --panel: rgb(19 17 14 / 0.82);
+    --line: #3a342b;
+    --fg: #ebe5d8;
+    --fg-muted: #a8a094;
+    --accent: #f47d3a;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #0a0907; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden;
+    font: 13px/1.5 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  #hud { position: fixed; left: 12px; top: 12px; right: 12px; pointer-events: none; display: flex; flex-wrap: wrap; gap: 4px 16px;
+    font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgb(0 0 0 / 0.8); }
+  #hud b { font-weight: 600; }
+  #hud span { color: var(--fg-muted); }
+  #panel { position: fixed; left: 12px; right: 12px; bottom: 12px; max-width: 760px; margin: 0 auto; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(8px); }
+  #panel .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  #panel .row + .row { margin-top: 8px; }
+  #panel label { display: flex; align-items: center; gap: 6px; color: var(--fg-muted); white-space: nowrap; }
+  #panel input[type="range"] { accent-color: var(--accent); }
+  #sun { flex: 1 1 220px; min-width: 160px; }
+  #sunLabel { color: var(--fg); min-width: 5.5em; font-variant-numeric: tabular-nums; }
+  button, select, input[type="date"] { font: inherit; color: var(--fg); background: #1a1814; border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  details summary { cursor: pointer; color: var(--fg-muted); margin-top: 8px; }
+  #err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<div id="err"></div>
+<div id="panel">
+  <div class="row">
+    <label for="sun">太陽の高度</label>
+    <input id="sun" type="range" min="-30" max="30" step="0.1" value="-8">
+    <span id="sunLabel"></span>
+    <select id="branch" aria-label="朝か夕方か">
+      <option value="evening">夕方</option>
+      <option value="morning">朝</option>
+    </select>
+    <button id="auto" type="button" aria-pressed="false">時刻を進める</button>
+  </div>
+  <details>
+    <summary>細かい設定</summary>
+    <div class="row">
+      <label>日付 <input id="date" type="date" value="2026-11-19"></label>
+      <label>露出の補正 <input id="ev" type="range" min="-3" max="3" step="0.1" value="0"><span id="evLabel">0 EV</span></label>
+      <label>またたき <input id="twinkle" type="range" min="0" max="0.4" step="0.01" value="0.12"></label>
+    </div>
+    <div class="row">
+      <label>空の解像度
+        <select id="scale"><option value="1">1 倍</option><option value="0.5" selected>1/2</option><option value="0.25">1/4</option></select>
+      </label>
+      <label>積分の回数
+        <select id="steps"><option>12</option><option>24</option><option selected>32</option><option>48</option></select>
+      </label>
+      <label>波長の数
+        <select id="bands"><option>3</option><option>6</option><option selected>12</option></select>
+      </label>
+      <label><input id="ms" type="checkbox" checked> 多重散乱</label>
+      <label><input id="ozone" type="checkbox" checked> オゾン</label>
+      <label><input id="mw" type="checkbox" checked> 天の川</label>
+      <label><input id="land" type="checkbox" checked> 山と木立</label>
+      <label><input id="night" type="checkbox" checked> 暗い所での色の見え方</label>
+    </div>
+    <div class="row" style="color: var(--fg-muted)">画面を横に引くと見る方位が変わり、縦に引くと見上げる角度が変わる。</div>
+  </details>
+</div>
+<script src="stars.js"></script>
+<script>
+"use strict";
+// ---------------------------------------------------------------- 観測地と日時
+const SITE = { name: "北緯 36.0°、東経 138.5°、標高 1200 m", lat: 36.0, lon: 138.5, heightKm: 1.2 };
+const RAD = Math.PI / 180;
+const params = new URLSearchParams(location.search);
+
+/** ユリウス日（UT）。date は Date */
+const julian = (date) => date.getTime() / 86400000 + 2440587.5;
+
+/** 太陽の赤経と赤緯（ラジアン）。Astronomical Almanac の近似式で、誤差は約 0.01° */
+function sunEquatorial(jd) {
+  const n = jd - 2451545.0;
+  const L = (280.460 + 0.9856474 * n) * RAD;
+  const g = (357.528 + 0.9856003 * n) * RAD;
+  const lambda = L + (1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD;
+  const eps = (23.439 - 0.0000004 * n) * RAD;
+  return { ra: Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda)), dec: Math.asin(Math.sin(eps) * Math.sin(lambda)) };
+}
+
+/** 地方恒星時（ラジアン） */
+function localSidereal(jd, lonDeg) {
+  const gmstHours = 18.697375 + 24.065709824279 * (jd - 2451545.0);
+  return ((((gmstHours * 15 + lonDeg) % 360) + 360) % 360) * RAD;
+}
+
+/** 赤道座標のベクトルを、東・北・上のベクトルへ直す行列（行優先の 9 個） */
+function eqToHorizontal(lst, latDeg) {
+  const sL = Math.sin(lst), cL = Math.cos(lst), sP = Math.sin(latDeg * RAD), cP = Math.cos(latDeg * RAD);
+  return [-sL, cL, 0, -sP * cL, -sP * sL, cP, cP * cL, cP * sL, sP];
+}
+const mulMV = (m, v) => [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]];
+const transpose = (m) => [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]];
+const mulMM = (a, b) => { const o = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o.push(a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]); return o; };
+// 赤道座標（J2000）から銀河座標へ。Hipparcos カタログの定義の行列
+const EQ_TO_GAL = [-0.0548755604, -0.8734370902, -0.4838350155, 0.4941094279, -0.4448296300, 0.7469822445, -0.8676661490, -0.1980763734, 0.4559837762];
+
+function sunHorizontal(jd) {
+  const s = sunEquatorial(jd);
+  const v = [Math.cos(s.dec) * Math.cos(s.ra), Math.cos(s.dec) * Math.sin(s.ra), Math.sin(s.dec)];
+  const h = mulMV(eqToHorizontal(localSidereal(jd, SITE.lon), SITE.lat), v);
+  return { vec: h, alt: Math.asin(h[2]) / RAD, az: ((Math.atan2(h[0], h[1]) / RAD) + 360) % 360 };
+}
+
+/** その日のうちで、太陽の高度が target（度）になる時刻を探す。夕方は南中のあと、朝は南中の前 */
+function solveTime(dateStr, target, branch) {
+  // 日本標準時の 0 時から 1 分ごとに 36 時間ぶん調べる
+  const start = julian(new Date(`${dateStr}T00:00:00+09:00`));
+  const alts = [];
+  for (let i = 0; i <= 36 * 60; i++) alts.push(sunHorizontal(start + i / 1440).alt);
+  let noon = 0;
+  for (let i = 0; i < 24 * 60; i++) if (alts[i] > alts[noon]) noon = i;
+  const dir = branch === "evening" ? 1 : -1;
+  const limit = branch === "evening" ? Math.min(alts.length - 1, noon + 12 * 60) : Math.max(1, noon - 12 * 60);
+  for (let i = noon; i !== limit; i += dir) {
+    const a = alts[i], b = alts[i + dir];
+    if ((a - target) * (b - target) <= 0 && a !== b) return start + (i + dir * (a - target) / (a - b)) / 1440;
+  }
+  return start + (target > alts[noon] ? noon : limit) / 1440;
+}
+
+// ---------------------------------------------------------------- WebGL
+const canvas = document.getElementById("c");
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, powerPreference: "high-performance" });
+const fail = (msg) => { const e = document.getElementById("err"); e.style.display = "flex"; e.textContent = msg; throw new Error(msg); };
+if (!gl) fail("このブラウザは WebGL2 に対応していないので、空を描けない。");
+if (!gl.getExtension("EXT_color_buffer_float")) fail("このブラウザは浮動小数のテクスチャに描けないので、空を描けない。");
+const timerExt = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+
+const VS_QUAD = `#version 300 es
+in vec2 aPos; out vec2 vUv;
+void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+const ATMOSPHERE = `
+const float PI = 3.14159265358979;
+const float Rg = 6360.0;   // 地球の半径 km
+const float Rt = 6460.0;   // 大気の上端 km
+uniform vec3 bR;             // Rayleigh 散乱 1/km。1 回の計算で 3 つの波長を扱う
+uniform vec3 bO;             // オゾンの吸収 1/km
+const float bMs = 3.996e-3;  // Mie 散乱 1/km（波長によらない）
+const float bMe = 4.44e-3;   // Mie 消散 1/km
+uniform float uOzone;
+uniform float uMs;
+uniform sampler2D uTrans;
+uniform sampler2D uMulti;
+
+void medium(float h, out vec3 scatR, out float scatM, out vec3 ext) {
+  float dR = exp(-h / 8.0);
+  float dM = exp(-h / 1.2);
+  float dO = max(0.0, h < 25.0 ? h / 15.0 - 2.0 / 3.0 : -h / 15.0 + 8.0 / 3.0) * uOzone;
+  scatR = bR * dR;
+  scatM = bMs * dM;
+  ext = scatR + vec3(bMe * dM) + bO * dO;
+}
+// 原点が中心の球と、点 o から向き d の半直線が交わる距離。x は手前、y は奥。交わらなければ負
+vec2 raySphere(vec3 o, vec3 d, float R) {
+  float b = dot(o, d);
+  float c = dot(o, o) - R * R;
+  float disc = b * b - c;
+  if (disc < 0.0) return vec2(-1.0);
+  float s = sqrt(disc);
+  return vec2(-b - s, -b + s);
+}
+vec2 transUv(float r, float mu) {
+  float H = sqrt(Rt * Rt - Rg * Rg);
+  float rho = sqrt(max(0.0, r * r - Rg * Rg));
+  float d = max(0.0, -r * mu + sqrt(max(0.0, r * r * (mu * mu - 1.0) + Rt * Rt)));
+  float dmin = Rt - r, dmax = rho + H;
+  vec2 uv = vec2((d - dmin) / (dmax - dmin), rho / H);
+  return uv * vec2(255.0 / 256.0, 63.0 / 64.0) + vec2(0.5 / 256.0, 0.5 / 64.0);
+}
+vec3 transmittance(float r, float mu) { return texture(uTrans, transUv(r, mu)).rgb; }
+// 点 p から太陽までの透過率。地球の影に入っていれば 0
+vec3 sunLight(vec3 p, vec3 sun) {
+  float r = length(p);
+  vec2 g = raySphere(p, sun, Rg);
+  if (g.x > 0.0) return vec3(0.0);
+  return transmittance(r, dot(p, sun) / r);
+}
+vec3 multiScatter(float h, float muS) {
+  vec2 uv = vec2(muS * 0.5 + 0.5, clamp(h / (Rt - Rg), 0.0, 1.0));
+  return texture(uMulti, uv * (31.0 / 32.0) + 0.5 / 32.0).rgb * uMs;
+}
+`;
+
+// 透過率の表: 高さ r の点から、天頂との角の余弦 mu の向きに、大気の上端まで積分した透過率
+const FS_TRANS = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+${ATMOSPHERE}
+void main() {
+  vec2 uv = (vUv - vec2(0.5 / 256.0, 0.5 / 64.0)) / vec2(255.0 / 256.0, 63.0 / 64.0);
+  float H = sqrt(Rt * Rt - Rg * Rg);
+  float rho = H * clamp(uv.y, 0.0, 1.0);
+  float r = sqrt(rho * rho + Rg * Rg);
+  float dmin = Rt - r, dmax = rho + H;
+  float d = dmin + clamp(uv.x, 0.0, 1.0) * (dmax - dmin);
+  float mu = d == 0.0 ? 1.0 : clamp((H * H - rho * rho - d * d) / (2.0 * r * d), -1.0, 1.0);
+  vec3 p = vec3(0.0, 0.0, r);
+  vec3 dir = vec3(sqrt(max(0.0, 1.0 - mu * mu)), 0.0, mu);
+  vec3 tau = vec3(0.0);
+  const int N = 40;
+  float dt = d / float(N);
+  for (int i = 0; i < N; i++) {
+    vec3 q = p + dir * (float(i) + 0.5) * dt;
+    vec3 sR, e; float sM;
+    medium(length(q) - Rg, sR, sM, e);
+    tau += e * dt;
+  }
+  o = vec4(exp(-tau), 1.0);
+}`;
+
+// 多重散乱の表（Hillaire 2020 の式 5〜10）。横は太陽の天頂角の余弦、縦は高さ
+const FS_MULTI = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+${ATMOSPHERE}
+void main() {
+  vec2 uv = clamp((vUv - 0.5 / 32.0) / (31.0 / 32.0), 0.0, 1.0);
+  float muS = uv.x * 2.0 - 1.0;
+  float h = max(0.01, uv.y * (Rt - Rg));
+  vec3 p = vec3(0.0, 0.0, Rg + h);
+  vec3 sun = vec3(sqrt(max(0.0, 1.0 - muS * muS)), 0.0, muS);
+  vec3 Lsum = vec3(0.0), Fsum = vec3(0.0);
+  for (int i = 0; i < 8; i++) for (int j = 0; j < 8; j++) {
+    float phi = 2.0 * PI * (float(i) + 0.5) / 8.0;
+    float ct = 1.0 - 2.0 * (float(j) + 0.5) / 8.0;
+    float st = sqrt(max(0.0, 1.0 - ct * ct));
+    vec3 dir = vec3(st * cos(phi), st * sin(phi), ct);
+    vec2 g = raySphere(p, dir, Rg);
+    bool hit = g.x > 0.0;
+    float tmax = hit ? g.x : raySphere(p, dir, Rt).y;
+    vec3 L = vec3(0.0), F = vec3(0.0), thr = vec3(1.0);
+    const int N = 20;
+    float dt = tmax / float(N);
+    for (int k = 0; k < N; k++) {
+      vec3 q = p + dir * (float(k) + 0.3) * dt;
+      vec3 sR, e; float sM;
+      medium(length(q) - Rg, sR, sM, e);
+      vec3 scat = sR + vec3(sM);
+      vec3 T = exp(-e * dt);
+      vec3 S = scat * sunLight(q, sun) / (4.0 * PI);
+      L += thr * (S - S * T) / e;
+      F += thr * (scat - scat * T) / e;
+      thr *= T;
+    }
+    if (hit) {
+      // 地面で跳ね返る光。反射率は 0.3
+      vec3 q = p + dir * tmax;
+      vec3 n = normalize(q);
+      L += thr * transmittance(Rg, dot(n, sun)) * max(0.0, dot(n, sun)) * 0.3 / PI;
+    }
+    Lsum += L; Fsum += F;
+  }
+  Lsum /= 64.0; Fsum /= 64.0;
+  o = vec4(Lsum / (1.0 - Fsum), 1.0);
+}`;
+
+// 空。視線に沿って散乱を積分する。出力は、太陽の照度を 1 としたときの輝度に、露出を掛けたもの
+const FS_SKY = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+${ATMOSPHERE}
+uniform vec3 uFwd, uRight, uUp;
+uniform vec2 uTan;
+uniform vec3 uSun;
+uniform float uCamR;
+uniform float uExposure;
+uniform int uSteps;
+uniform int uProbe;
+uniform vec3 uProbeDirs[5];
+uniform mat3 uWeight;   // 3 つの波長の輝度を、線形の sRGB へ直す重み
+uniform vec3 uAir, uGal; // 大気光と天の川の、波長ごとの強さ
+uniform mat3 uHorToGal;
+uniform sampler2D uGalaxy;
+uniform float uGalaxyOn;
+uniform float uGalaxyScale;
+void main() {
+  vec3 dir = normalize(uFwd + (vUv.x * 2.0 - 1.0) * uTan.x * uRight + (vUv.y * 2.0 - 1.0) * uTan.y * uUp);
+  if (uProbe == 1) dir = uProbeDirs[int(gl_FragCoord.x)];
+  vec3 p = vec3(0.0, 0.0, uCamR);
+  vec2 g = raySphere(p, dir, Rg);
+  bool hit = g.x > 0.0;
+  float tmax = hit ? g.x : raySphere(p, dir, Rt).y;
+  float c = dot(dir, uSun);
+  float phR = 3.0 / (16.0 * PI) * (1.0 + c * c);
+  const float G = 0.8;
+  float phM = 3.0 / (8.0 * PI) * (1.0 - G * G) / (2.0 + G * G) * (1.0 + c * c) / pow(1.0 + G * G - 2.0 * G * c, 1.5);
+  vec3 L = vec3(0.0), thr = vec3(1.0);
+  float n = float(uSteps);
+  for (int k = 0; k < 64; k++) {
+    if (k >= uSteps) break;
+    // 手前ほど細かく刻む。区間の端は tmax × (k/n)^2
+    float t0 = tmax * (float(k) / n) * (float(k) / n);
+    float t1 = tmax * (float(k + 1) / n) * (float(k + 1) / n);
+    float dt = t1 - t0;
+    vec3 q = p + dir * (t0 + 0.3 * dt);
+    float r = length(q);
+    vec3 sR, e; float sM;
+    medium(r - Rg, sR, sM, e);
+    vec3 T = exp(-e * dt);
+    vec3 S = sunLight(q, uSun) * (sR * phR + vec3(sM * phM)) + multiScatter(r - Rg, dot(q, uSun) / r) * (sR + vec3(sM));
+    L += thr * (S - S * T) / e;
+    thr *= T;
+  }
+  if (!hit) {
+    // 太陽の円盤。視半径 0.2666°、立体角 6.8e-5 sr
+    float ang = acos(clamp(c, -1.0, 1.0));
+    if (uProbe == 0) L += thr * smoothstep(0.00475, 0.00455, ang) / 6.8e-5;
+    // 大気光。22 等/平方秒角 = 1.36e-9。高度 90 km の薄い層なので、低い空ほど厚く見える（van Rhijn の式）
+    float sz = sqrt(max(0.0, 1.0 - dir.z * dir.z));
+    float vr = 1.0 / sqrt(1.0 - pow(uCamR / (Rg + 90.0) * sz, 2.0));
+    L += thr * uAir * 1.36e-9 * vr;
+    // 天の川
+    vec3 gd = uHorToGal * dir;
+    vec2 guv = vec2(atan(gd.y, gd.x) / (2.0 * PI) + 0.5, asin(clamp(gd.z, -1.0, 1.0)) / PI + 0.5);
+    L += thr * texture(uGalaxy, guv).r * uGalaxyScale * uGalaxyOn * uGal;
+  }
+  o = vec4(uWeight * L * (uProbe == 1 ? 1.0 : uExposure), 1.0);
+}`;
+
+// 星。1 個を 1 つの点として描き、光の量を保ったまま正規分布の形に広げる
+const VS_STAR = `#version 300 es
+precision highp float;
+in vec3 aEq; in vec4 aColorFlux; in float aSeed;
+${ATMOSPHERE}
+uniform mat3 uEqToHor;
+uniform vec3 uFwd, uRight, uUp;
+uniform vec2 uTan;
+uniform float uCamR, uExposure, uPixelSr, uDpr, uTime, uTwinkle;
+out vec3 vColor; out float vSigma;
+void main() {
+  vec3 hor = uEqToHor * aEq;
+  vec3 cam = vec3(dot(hor, uRight), dot(hor, uUp), dot(hor, uFwd));
+  if (hor.z < 0.0 || cam.z < 0.05) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 1.0; return; }
+  gl_Position = vec4(cam.x / cam.z / uTan.x, cam.y / cam.z / uTan.y, 0.0, 1.0);
+  // 大気の減光。空と同じ透過率の表を、星の高度で引く
+  vec3 flux = aColorFlux.rgb * aColorFlux.a * transmittance(uCamR, hor.z);
+  // またたき。大気の厚さ X の 1.5 乗に比例する強さで、明るさを対数正規分布で揺らす
+  float altDeg = degrees(asin(hor.z));
+  float X = 1.0 / (hor.z + 0.50572 * pow(altDeg + 6.07995, -1.6364));
+  float sig = min(1.0, uTwinkle * pow(X, 1.5));
+  float f1 = 2.0 + 16.0 * fract(aSeed * 7.31), f2 = 2.0 + 16.0 * fract(aSeed * 3.77), f3 = 2.0 + 16.0 * fract(aSeed * 5.13), f4 = 2.0 + 16.0 * fract(aSeed * 9.19);
+  float t = uTime * 2.0 * PI;
+  float n = (sin(t * f1 + aSeed * 40.0) + sin(t * f2 + aSeed * 71.0) + sin(t * f3 + aSeed * 13.0) + sin(t * f4 + aSeed * 97.0)) / 1.4142;
+  // 低い空では色ごとに光の通り道がずれるので、色ごとに少し違う揺れを足す
+  vec3 nc = vec3(sin(t * f2 * 1.3 + aSeed * 11.0), sin(t * f3 * 1.1 + aSeed * 23.0), sin(t * f1 * 0.9 + aSeed * 37.0)) * min(1.0, (X - 1.0) * 0.08);
+  flux *= exp(sig * (n + nc) - 0.5 * sig * sig);
+  // 画面の端ほど 1 画素の立体角が小さい（cos^3）
+  float cosT = cam.z / length(cam);
+  float sr = uPixelSr * cosT * cosT * cosT;
+  float lum = max(flux.r, max(flux.g, flux.b)) * uExposure / sr;
+  // 明るい星は、頂点の明るさが 3 を超えないように広げる。暗い星は標準偏差 0.65 画素
+  float sigma = clamp(sqrt(lum / (2.0 * PI * 3.0)), 0.65 * uDpr, 3.5 * uDpr);
+  vSigma = sigma;
+  vColor = flux * uExposure / sr / (2.0 * PI * sigma * sigma);
+  gl_PointSize = ceil(sigma * 6.0) + 1.0;
+}`;
+const FS_STAR = `#version 300 es
+precision highp float;
+in vec3 vColor; in float vSigma; out vec4 o;
+void main() {
+  float size = ceil(vSigma * 6.0) + 1.0;
+  vec2 d = (gl_PointCoord - 0.5) * size;
+  o = vec4(vColor * exp(-dot(d, d) / (2.0 * vSigma * vSigma)), 1.0);
+}`;
+
+// 仕上げ。空と星を足し、山と木立を重ね、トーンマッピングとディザをかける
+const FS_FINAL = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+uniform sampler2D uSky, uStars;
+uniform vec3 uFwd, uRight, uUp;
+uniform vec2 uTan;
+uniform float uLand;
+uniform float uPitch;
+uniform float uNight;     // 暗い所での色の見え方を入れるか
+uniform float uToCd;      // 画面の値を cd/m^2 に直す係数
+float hash(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+float noise(float x) { float i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(hash(i), hash(i + 1.0), f); }
+float fbm(float x) { return noise(x) * 0.5 + noise(x * 2.03 + 7.0) * 0.25 + noise(x * 4.1 + 3.0) * 0.125 + noise(x * 8.3) * 0.0625; }
+// 森の輪郭。幅 w 度ごとに木が 1 本あり、高さは乱数。先は丸める
+float canopy(float az, float w, float tall) {
+  float x = az / w, i = floor(x), f = fract(x) - 0.5;
+  float h = tall * (0.35 + 0.65 * hash(i * 1.7 + w));
+  float half_ = 0.5 * (0.7 + 0.5 * hash(i + 3.0));
+  float up = max(0.0, 1.0 - abs(f) / half_);
+  return h * pow(up, 0.75);
+}
+vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+void main() {
+  vec3 hdr = max(vec3(0.0), texture(uSky, vUv).rgb) + texture(uStars, vUv).rgb;
+  if (uLand > 0.5) {
+    vec3 dir = normalize(uFwd + (vUv.x * 2.0 - 1.0) * uTan.x * uRight + (vUv.y * 2.0 - 1.0) * uTan.y * uUp);
+    float alt = degrees(asin(dir.z));
+    float az = degrees(atan(dir.x, dir.y)) + 360.0;
+    // 遠い山（稜線の高さ 0.6〜2.2 度）、手前の山（0.4〜2.6 度）、いちばん手前の森（0.5〜1.8 度）の 3 枚。
+    // 地平線から 3 度までの空がいちばん赤いので、そこを隠さない高さにしている
+    float far = 0.6 + 1.6 * fbm(az * 0.035 + 11.0);
+    float mid = 0.4 + 2.2 * fbm(az * 0.06 + 40.0) * fbm(az * 0.021 + 3.0) * 1.6;
+    float wood = 0.5 + 0.8 * fbm(az * 0.11 + 70.0) + max(canopy(az, 0.5, 0.5), canopy(az + 0.2, 0.33, 0.36));
+    // 遠い山ほど、手前の空気が光って空の色に近づく。稜線のすぐ上の空の色を混ぜる
+    vec3 haze = max(vec3(0.0), texture(uSky, vec2(vUv.x, 0.5 + 0.5 * tan(radians(far + 0.8 - uPitch)) / uTan.y)).rgb);
+    float aa = fwidth(alt) * 1.0;
+    hdr = mix(hdr, haze * 0.45, smoothstep(aa, -aa, alt - far));
+    hdr = mix(hdr, haze * 0.16, smoothstep(aa, -aa, alt - mid));
+    hdr = mix(hdr, haze * 0.015, smoothstep(aa, -aa, alt - wood));
+  }
+  if (uNight > 0.5) {
+    // 暗い所では色を感じる細胞が働かず、明るさを感じる細胞（青緑に感度の頂点がある）だけで見る。
+    // 0.001 cd/m^2 より暗い画素は青みがかった無彩色にし、0.3 cd/m^2 より明るい画素は色をそのまま残す。間は対数でつなぐ
+    vec3 xyz = mat3(0.4124, 0.2126, 0.0193, 0.3576, 0.7152, 0.1192, 0.1805, 0.0722, 0.9505) * hdr;
+    float V = max(0.0, xyz.y * (1.33 * (1.0 + (xyz.y + xyz.z) / max(xyz.x, 1e-9)) - 1.68));
+    float cd = xyz.y * uToCd;
+    float k = clamp((log(max(cd, 1e-9)) / log(10.0) + 3.0) / 2.48, 0.0, 1.0);
+    hdr = mix(V / 2.5 * vec3(0.80, 0.97, 1.25), hdr, k);
+  }
+  vec3 c = pow(aces(hdr), vec3(1.0 / 2.2));
+  // 暗い階調の縞を防ぐディザ（Jimenez 2014 の interleaved gradient noise）。±0.5/255
+  float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  o = vec4(c + (ign - 0.5) / 255.0, 1.0);
+}`;
+
+function program(vs, fs) {
+  const p = gl.createProgram();
+  for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) fail("シェーダーを組み立てられない: " + gl.getShaderInfoLog(s));
+    gl.attachShader(p, s);
+  }
+  gl.bindAttribLocation(p, 0, "aPos");
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) fail("シェーダーをつなげられない: " + gl.getProgramInfoLog(p));
+  const uniforms = {};
+  const count = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < count; i++) { const info = gl.getActiveUniform(p, i); uniforms[info.name] = gl.getUniformLocation(p, info.name); }
+  return { p, u: uniforms };
+}
+function target(w, h, internal, filter) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, internal, w, h);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return { tex, fbo, w, h };
+}
+function dispose(t) { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); } }
+
+const quad = gl.createVertexArray();
+gl.bindVertexArray(quad);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+const progTrans = program(VS_QUAD, FS_TRANS);
+const progMulti = program(VS_QUAD, FS_MULTI);
+const progSky = program(VS_QUAD, FS_SKY);
+const progStar = program(VS_STAR, FS_STAR);
+const progFinal = program(VS_QUAD, FS_FINAL);
+
+// 表は、波長の組ごとに 1 枚ずつ（最大 4 組 = 12 波長）。5 枚目は星の減光に使う 610、550、465 nm
+const lutTrans = Array.from({ length: 5 }, () => target(256, 64, gl.RGBA16F, gl.LINEAR));
+const lutMulti = Array.from({ length: 4 }, () => target(32, 32, gl.RGBA16F, gl.LINEAR));
+const probe = target(5, 1, gl.RGBA32F, gl.NEAREST);
+
+// ---------------------------------------------------------------- 波長
+// 太陽のスペクトル（ASTM G-173 の大気圏外、W/m^2/nm）とオゾンの吸収断面積（233 K、m^2）。360〜830 nm を 10 nm 刻み。
+// E. Bruneton, precomputed_atmospheric_scattering の demo.cc の表
+const SOLAR = [1.11776, 1.14259, 1.01249, 1.14716, 1.72765, 1.73054, 1.6887, 1.61253, 1.91198, 2.03474, 2.02042, 2.02212, 1.93377, 1.95809, 1.91686, 1.8298, 1.8685, 1.8931, 1.85149, 1.8504, 1.8341, 1.8345, 1.8147, 1.78158, 1.7533, 1.6965, 1.68194, 1.64654, 1.6048, 1.52143, 1.55622, 1.5113, 1.474, 1.4482, 1.41018, 1.36775, 1.34188, 1.31429, 1.28303, 1.26758, 1.2367, 1.2082, 1.18737, 1.14683, 1.12362, 1.1058, 1.07124, 1.04992];
+const OZONE = [1.18e-27, 2.182e-28, 2.818e-28, 6.636e-28, 1.527e-27, 2.763e-27, 5.52e-27, 8.451e-27, 1.582e-26, 2.316e-26, 3.669e-26, 4.924e-26, 7.752e-26, 9.016e-26, 1.48e-25, 1.602e-25, 2.139e-25, 2.755e-25, 3.091e-25, 3.5e-25, 4.266e-25, 4.672e-25, 4.398e-25, 4.701e-25, 5.019e-25, 4.305e-25, 3.74e-25, 3.215e-25, 2.662e-25, 2.238e-25, 1.852e-25, 1.473e-25, 1.209e-25, 9.423e-26, 7.455e-26, 6.566e-26, 5.105e-26, 4.15e-26, 4.228e-26, 3.237e-26, 2.451e-26, 2.801e-26, 2.534e-26, 1.624e-26, 1.465e-26, 2.078e-26, 1.383e-26, 7.105e-27];
+// CIE 1931 の等色関数。380〜730 nm を 10 nm 刻み（同じく constants.h の表から）
+const CMF_X = [0.00137, 0.00424, 0.01431, 0.04351, 0.13438, 0.2839, 0.34828, 0.3362, 0.2908, 0.19536, 0.09564, 0.03201, 0.0049, 0.0093, 0.06327, 0.1655, 0.2904, 0.43345, 0.5945, 0.7621, 0.9163, 1.0263, 1.0622, 1.0026, 0.85445, 0.6424, 0.4479, 0.2835, 0.1649, 0.0874, 0.04677, 0.0227, 0.01136, 0.00579, 0.0029, 0.00144];
+const CMF_Y = [4e-05, 0.00012, 0.0004, 0.00121, 0.004, 0.0116, 0.023, 0.038, 0.06, 0.09098, 0.13902, 0.20802, 0.323, 0.503, 0.71, 0.862, 0.954, 0.99495, 0.995, 0.952, 0.87, 0.757, 0.631, 0.503, 0.381, 0.265, 0.175, 0.107, 0.061, 0.032, 0.017, 0.00821, 0.0041, 0.00209, 0.00105, 0.00052];
+const CMF_Z = [0.00645, 0.02005, 0.06785, 0.2074, 0.6456, 1.3856, 1.74706, 1.77211, 1.6692, 1.28764, 0.81295, 0.46518, 0.272, 0.1582, 0.07825, 0.04216, 0.0203, 0.00875, 0.0039, 0.0021, 0.00165, 0.0011, 0.0008, 0.00034, 0.00019, 5e-05, 2e-05, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const XYZ_TO_SRGB = [3.2406, -1.5372, -0.4986, -0.9689, 1.8758, 0.0415, 0.0557, -0.2040, 1.0570];
+const table = (arr, first, nm) => {
+  const x = Math.min(arr.length - 1.001, Math.max(0, (nm - first) / 10)), i = Math.floor(x);
+  return arr[i] + (arr[i + 1] - arr[i]) * (x - i);
+};
+const planck = (nm, T) => 1 / (nm ** 5 * (Math.exp(1.4388e7 / (nm * T)) - 1));
+const T_SUN = 5772;
+/** 波長 nm の Rayleigh 散乱とオゾンの吸収（1/km）。オゾンは全量 300 DU */
+const rayleighAt = (nm) => 1.24062e-6 * (nm / 1000) ** -4 * 1000;
+const ozoneAt = (nm) => (300 * 2.687e20 / 15000) * table(OZONE, 360, nm) * 1000;
+/** スペクトル（波長の関数）を線形の sRGB にする。太陽の光そのものの明るさ（Y）が 1 になるように割る */
+const SUN_Y = (() => { let y = 0; for (let nm = 380; nm <= 730; nm += 5) y += table(SOLAR, 360, nm) * table(CMF_Y, 380, nm) * 5; return y; })();
+function rgbOf(nm) {
+  const xyz = [table(CMF_X, 380, nm), table(CMF_Y, 380, nm), table(CMF_Z, 380, nm)];
+  return mulMV(XYZ_TO_SRGB, xyz);
+}
+/**
+ * 波長の組を作る。n は波長の数（3 の倍数）。380〜730 nm を n 等分し、3 つずつ 1 回の計算にまとめる。
+ * weight は、その 3 波長の輝度（太陽の分光放射照度を 1 とした値）を線形の sRGB へ足し込む行列。
+ */
+function makeBands(n) {
+  const step = 350 / n;
+  const lambdas = Array.from({ length: n }, (_, i) => 380 + (i + 0.5) * step);
+  // 大気光は緑の線（557.7 nm）を持つ。天の川は 5200 K の星の集まりとして扱う。どちらも明るさ（Y）が 1 になるように割る
+  const airShape = (nm) => 1 + 0.8 * Math.exp(-(((nm - 557.7) / 15) ** 2));
+  const galShape = (nm) => planck(nm, 5200) / planck(nm, T_SUN);
+  const lum = (nm) => table(SOLAR, 360, nm) * table(CMF_Y, 380, nm) * step / SUN_Y;
+  const airNorm = 1 / lambdas.reduce((a, nm) => a + lum(nm) * airShape(nm), 0);
+  const galNorm = 1 / lambdas.reduce((a, nm) => a + lum(nm) * galShape(nm), 0);
+  const bands = [];
+  for (let k = 0; k < n / 3; k++) {
+    const l3 = [lambdas[k], lambdas[k + n / 3], lambdas[k + 2 * n / 3]];
+    const cols = l3.map((nm) => rgbOf(nm).map((v) => v * table(SOLAR, 360, nm) * step / SUN_Y));
+    bands.push({
+      lambdas: l3,
+      bR: l3.map(rayleighAt),
+      bO: l3.map(ozoneAt),
+      // 列優先の mat3。列が波長、行が R、G、B
+      weight: new Float32Array([...cols[0], ...cols[1], ...cols[2]]),
+      air: l3.map((nm) => airShape(nm) * airNorm),
+      gal: l3.map((nm) => galShape(nm) * galNorm),
+    });
+  }
+  return bands;
+}
+const STAR_BAND = { bR: [610, 550, 465].map(rayleighAt), bO: [610, 550, 465].map(ozoneAt) };
+let bands = [];
+let skyTarget = null, starTarget = null;
+
+function bindTex(unit, tex) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); }
+function drawQuad(t) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t ? t.fbo : null);
+  gl.viewport(0, 0, t ? t.w : canvas.width, t ? t.h : canvas.height);
+  gl.bindVertexArray(quad);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+function atmosphereUniforms(prog, band, k) {
+  gl.uniform3fv(prog.u.bR, band.bR);
+  gl.uniform3fv(prog.u.bO, band.bO);
+  gl.uniform1f(prog.u.uOzone, ui.ozone.checked ? 1 : 0);
+  gl.uniform1f(prog.u.uMs, ui.ms.checked ? 1 : 0);
+  bindTex(0, lutTrans[k].tex); gl.uniform1i(prog.u.uTrans, 0);
+  bindTex(1, k < 4 ? lutMulti[k].tex : null); gl.uniform1i(prog.u.uMulti, 1);
+}
+function buildLuts() {
+  bands = makeBands(Number(ui.bands.value));
+  gl.disable(gl.BLEND);
+  [...bands, STAR_BAND].forEach((band, i) => {
+    const k = band === STAR_BAND ? 4 : i;
+    gl.useProgram(progTrans.p); atmosphereUniforms(progTrans, band, k); bindTex(0, null); bindTex(1, null); drawQuad(lutTrans[k]);
+    if (k === 4) return;
+    gl.useProgram(progMulti.p); atmosphereUniforms(progMulti, band, k); bindTex(1, null); drawQuad(lutMulti[k]);
+  });
+}
+
+// ---------------------------------------------------------------- 星
+const STARS = window.TAKIBI_STARS || [];
+const starCount = STARS.length / 4;
+{
+  const data = new Float32Array(starCount * 8);
+  for (let i = 0; i < starCount; i++) {
+    const ra = STARS[i * 4] * RAD, dec = STARS[i * 4 + 1] * RAD, mag = STARS[i * 4 + 2], bv = STARS[i * 4 + 3];
+    const T = 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62));
+    // 温度 T の黒体放射のスペクトルを sRGB にして、明るさ（Y）を 1 にそろえる
+    const rgb = [0, 0, 0]; let y = 0;
+    for (let nm = 385; nm <= 725; nm += 10) {
+      const e = planck(nm, T) / planck(550, T), c = rgbOf(nm);
+      rgb[0] += e * c[0]; rgb[1] += e * c[1]; rgb[2] += e * c[2]; y += e * table(CMF_Y, 380, nm);
+    }
+    data.set([Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec),
+      Math.max(0, rgb[0] / y), Math.max(0, rgb[1] / y), Math.max(0, rgb[2] / y), 10 ** (-0.4 * (mag + 26.74)), (i * 0.61803398875) % 1], i * 8);
+  }
+  var starVao = gl.createVertexArray();
+  gl.bindVertexArray(starVao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  const loc = (name) => gl.getAttribLocation(progStar.p, name);
+  for (const [name, size, offset] of [["aEq", 3, 0], ["aColorFlux", 4, 12], ["aSeed", 1, 28]]) {
+    const l = loc(name);
+    if (l < 0) continue;
+    gl.enableVertexAttribArray(l);
+    gl.vertexAttribPointer(l, size, gl.FLOAT, false, 32, offset);
+  }
+}
+
+// ---------------------------------------------------------------- 天の川
+// 銀河の円盤を、太陽の位置から各方向へ GPU で積分する。単位は kpc。結果は銀河座標（銀経 −180〜180°、銀緯 −90〜90°）の 1024×512 の表
+const GAL_W = 1024, GAL_H = 512;
+const galaxyTex = gl.createTexture();
+let galaxyScale = 0;
+const FS_GALAXY = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+const float PI = 3.14159265358979;
+float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vn(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec3(7.1, 3.3, 5.7); a *= 0.5; } return s; }
+void main() {
+  const float R0 = 8.2, Z0 = 0.02;
+  float l = (vUv.x - 0.5) * 2.0 * PI, b = (vUv.y - 0.5) * PI;
+  vec3 d = vec3(cos(b) * cos(l), cos(b) * sin(l), sin(b));
+  float sum = 0.0, tau = 0.0, s0 = 0.0;
+  const int N = 72;
+  for (int k = 0; k < N; k++) {
+    // 0.02 kpc から 25 kpc まで、等比で刻む
+    float s1 = 0.02 * pow(1250.0, float(k + 1) / float(N));
+    float s = 0.5 * (s0 + s1), ds = s1 - s0;
+    s0 = s1;
+    vec3 q = vec3(-R0, 0.0, Z0) + s * d;
+    float R = length(q.xy), az = abs(q.z);
+    if (R > 16.0) continue;
+    // 星: 薄い円盤（長さ 2.6、厚さ 0.3）+ 厚い円盤（長さ 2.0、厚さ 0.9、太陽の近くで 4%）+ 中心のふくらみ。星の密度に ±50% のむら
+    float stars = exp(-(R - R0) / 2.6 - az / 0.3) * (0.45 + 1.1 * fbm(q * vec3(1.6, 1.6, 5.0) + 31.0))
+      + 0.04 * exp(-(R - R0) / 2.0 - az / 0.9)
+      + 60.0 * exp(-length(vec3(q.xy, q.z / 0.5)) / 0.45);
+    // 塵: 厚さ 0.1 の薄い層。太陽の近くで平均 1.8 等/kpc（1.66/kpc）。雲のかたまりとして強いむらを付ける
+    float clump = fbm(q * vec3(2.6, 2.6, 9.0));
+    float dust = 1.66 * exp(-(R - R0) / 4.0 - az / 0.1) * 0.8 * exp(15.0 * (clump - 0.55));
+    float dTau = dust * ds;
+    sum += stars * exp(-tau - 0.5 * dTau) * ds;
+    tau += dTau;
+  }
+  o = vec4(sum, 0.0, 0.0, 1.0);
+}`;
+function buildGalaxy() {
+  const prog = program(VS_QUAD, FS_GALAXY);
+  const t = target(GAL_W, GAL_H, gl.RGBA32F, gl.NEAREST);
+  gl.disable(gl.BLEND);
+  gl.useProgram(prog.p);
+  drawQuad(t);
+  const px = new Float32Array(GAL_W * GAL_H * 4);
+  gl.readPixels(0, 0, GAL_W, GAL_H, gl.RGBA, gl.FLOAT, px);
+  dispose(t);
+  const out = new Float32Array(GAL_W * GAL_H);
+  for (let i = 0; i < out.length; i++) out[i] = px[i * 4];
+  // 銀経 20〜50°、銀緯 ±5° の中央値を、21.0 等/平方秒角（輝度 3.42e-9）に合わせる
+  const band = [];
+  for (let j = 0; j < GAL_H; j++) for (let i = 0; i < GAL_W; i++) {
+    const b = ((j + 0.5) / GAL_H - 0.5) * 180, l = ((i + 0.5) / GAL_W - 0.5) * 360;
+    if (Math.abs(b) < 5 && l > 20 && l < 50) band.push(out[j * GAL_W + i]);
+  }
+  band.sort((a, b) => a - b);
+  const median = band[band.length >> 1];
+  for (let i = 0; i < out.length; i++) out[i] /= median;
+  galaxyScale = 10 ** (-0.4 * (21.0 + 26.74)) / 2.3504e-11;
+  gl.bindTexture(gl.TEXTURE_2D, galaxyTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, GAL_W, GAL_H, 0, gl.RED, gl.FLOAT, out);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  dirty = true;
+}
+gl.bindTexture(gl.TEXTURE_2D, galaxyTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, 1, 1, 0, gl.RED, gl.FLOAT, new Float32Array([0]));
+
+// ---------------------------------------------------------------- 状態と操作
+const $ = (id) => document.getElementById(id);
+const ui = { sun: $("sun"), sunLabel: $("sunLabel"), branch: $("branch"), auto: $("auto"), date: $("date"), ev: $("ev"), evLabel: $("evLabel"),
+  twinkle: $("twinkle"), scale: $("scale"), steps: $("steps"), bands: $("bands"), ms: $("ms"), ozone: $("ozone"), mw: $("mw"), land: $("land"), night: $("night") };
+if (params.has("date")) ui.date.value = params.get("date");
+if (params.has("branch")) ui.branch.value = params.get("branch");
+if (params.has("alt")) ui.sun.value = params.get("alt");
+if (params.has("ev")) ui.ev.value = params.get("ev");
+if (params.has("scale")) ui.scale.value = params.get("scale");
+if (params.has("bands")) ui.bands.value = params.get("bands");
+if (params.has("ozone")) ui.ozone.checked = params.get("ozone") !== "0";
+if (params.has("ms")) ui.ms.checked = params.get("ms") !== "0";
+if (params.has("land")) ui.land.checked = params.get("land") !== "0";
+if (params.has("night")) ui.night.checked = params.get("night") !== "0";
+
+let jd = solveTime(ui.date.value, Number(ui.sun.value), ui.branch.value);
+if (params.has("time")) jd = julian(new Date(`${ui.date.value}T${params.get("time")}:00+09:00`));
+// 見る向き。方位は北から東回りの度。初めは、その日の日の入りの方位
+let viewAz = params.has("az") ? Number(params.get("az")) : sunHorizontal(solveTime(ui.date.value, 0, ui.branch.value)).az;
+let viewPitch = params.has("pitch") ? Number(params.get("pitch")) : 31;
+const FOV_Y = 80;
+let dirty = true, auto = params.get("auto") === "1", exposure = 1, zenith = 0, dayLevel = 0;
+
+function setFromSlider() { jd = solveTime(ui.date.value, Number(ui.sun.value), ui.branch.value); dirty = true; }
+ui.sun.addEventListener("input", () => { auto = false; ui.auto.setAttribute("aria-pressed", "false"); setFromSlider(); });
+ui.branch.addEventListener("change", () => { viewAz = sunHorizontal(solveTime(ui.date.value, 0, ui.branch.value)).az; setFromSlider(); });
+ui.date.addEventListener("change", setFromSlider);
+ui.auto.addEventListener("click", () => { auto = !auto; ui.auto.setAttribute("aria-pressed", String(auto)); });
+for (const id of ["ev", "twinkle", "steps", "mw", "land", "ms", "night"]) ui[id].addEventListener("input", () => { dirty = true; });
+ui.scale.addEventListener("change", () => { resize(true); });
+for (const id of ["ozone", "bands"]) ui[id].addEventListener("change", () => { buildLuts(); dayLevel = 0; dirty = true; });
+ui.ms.addEventListener("change", () => { dayLevel = 0; dirty = true; });
+
+let drag = null;
+canvas.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, az: viewAz, pitch: viewPitch }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const degPerPx = FOV_Y / canvas.clientHeight;
+  viewAz = (drag.az - (e.clientX - drag.x) * degPerPx + 360) % 360;
+  viewPitch = Math.min(70, Math.max(10, drag.pitch + (e.clientY - drag.y) * degPerPx));
+  dirty = true;
+});
+canvas.addEventListener("pointerup", () => { drag = null; });
+canvas.addEventListener("pointercancel", () => { drag = null; });
+
+function resize(force) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (!force && canvas.width === w && canvas.height === h && skyTarget) return;
+  canvas.width = w; canvas.height = h;
+  dispose(skyTarget); dispose(starTarget);
+  const s = Number(ui.scale.value);
+  skyTarget = target(Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)), gl.RGBA16F, gl.LINEAR);
+  starTarget = target(w, h, gl.RGBA16F, gl.NEAREST);
+  dirty = true;
+}
+new ResizeObserver(() => resize(false)).observe(canvas);
+
+function camera() {
+  const az = viewAz * RAD, p = viewPitch * RAD;
+  const tanY = Math.tan(FOV_Y / 2 * RAD);
+  return {
+    fwd: [Math.sin(az) * Math.cos(p), Math.cos(az) * Math.cos(p), Math.sin(p)],
+    right: [Math.cos(az), -Math.sin(az), 0],
+    up: [-Math.sin(az) * Math.sin(p), -Math.cos(az) * Math.sin(p), Math.cos(p)],
+    tan: [tanY * canvas.width / canvas.height, tanY],
+  };
+}
+function cameraUniforms(prog, cam) {
+  gl.uniform3fv(prog.u.uFwd, cam.fwd); gl.uniform3fv(prog.u.uRight, cam.right); gl.uniform3fv(prog.u.uUp, cam.up);
+  gl.uniform2fv(prog.u.uTan, cam.tan);
+}
+const colMajor = (m) => new Float32Array(transpose(m));
+
+const luminance = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+
+/**
+ * 空を target に描く。波長の組ごとに 1 回ずつ計算して足す。
+ * probeDirs（5 つの向き）を渡すと、その向きの 5 画素だけを露出なしで描き、組ごとに onBand を呼ぶ。
+ */
+function renderSky(t, cam, sunVec, horToGal, probeDirs, onBand) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  // 32 ビットの浮動小数には足し込めない環境があるので、計測のときは組ごとに読んで CPU で足す
+  if (probeDirs) gl.disable(gl.BLEND); else { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); }
+  gl.useProgram(progSky.p);
+  cameraUniforms(progSky, cam);
+  gl.uniform3fv(progSky.u.uSun, sunVec);
+  gl.uniform1f(progSky.u.uCamR, 6360 + SITE.heightKm);
+  gl.uniform1f(progSky.u.uExposure, exposure);
+  gl.uniform1i(progSky.u.uSteps, probeDirs ? 48 : Number(ui.steps.value));
+  gl.uniform1i(progSky.u.uProbe, probeDirs ? 1 : 0);
+  if (probeDirs) gl.uniform3fv(progSky.u["uProbeDirs[0]"], probeDirs.flat());
+  gl.uniformMatrix3fv(progSky.u.uHorToGal, false, colMajor(horToGal));
+  gl.uniform1f(progSky.u.uGalaxyOn, ui.mw.checked && !probeDirs ? 1 : 0);
+  gl.uniform1f(progSky.u.uGalaxyScale, galaxyScale);
+  bands.forEach((band, k) => {
+    atmosphereUniforms(progSky, band, k);
+    bindTex(2, galaxyTex); gl.uniform1i(progSky.u.uGalaxy, 2);
+    gl.uniformMatrix3fv(progSky.u.uWeight, false, band.weight);
+    gl.uniform3fv(progSky.u.uAir, band.air);
+    gl.uniform3fv(progSky.u.uGal, band.gal);
+    drawQuad(t);
+    if (onBand) onBand();
+  });
+  gl.disable(gl.BLEND);
+}
+/**
+ * 露出を決めるための明るさ（太陽の光そのものを 1 とした輝度）。
+ * 天頂と、高度 20° の 4 方位（太陽の方位から 90° ごと）を 1 画素ずつ計算して読み、対数の平均を取る。
+ */
+function meter(sunVec, horToGal) {
+  const az = Math.atan2(sunVec[0], sunVec[1]), c = Math.cos(20 * RAD), sn = Math.sin(20 * RAD);
+  const dirs = [[0, 0, 1], ...[0, 1, 2, 3].map((i) => [Math.sin(az + i * Math.PI / 2) * c, Math.cos(az + i * Math.PI / 2) * c, sn])];
+  const sum = new Float32Array(20), px = new Float32Array(20);
+  renderSky(probe, camera(), sunVec, horToGal, dirs, () => {
+    gl.readPixels(0, 0, 5, 1, gl.RGBA, gl.FLOAT, px);
+    for (let i = 0; i < 20; i++) sum[i] += px[i];
+  });
+  const values = dirs.map((_, i) => Math.max(1e-12, luminance(sum.subarray(i * 4, i * 4 + 3))));
+  return { level: Math.exp(values.reduce((a, v) => a + Math.log(v), 0) / values.length), zenith: values[0] };
+}
+
+const KEY = Number(params.get("key") || 0.3), ADAPT = Number(params.get("adapt") || 0.235);
+let query = null, gpuMs = null, frameMs = 16.7, lastFrame = 0, startTime = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!skyTarget) return;
+  const dt = lastFrame ? now - lastFrame : 16.7;
+  lastFrame = now;
+  frameMs += (dt - frameMs) * 0.05;
+  if (auto) {
+    // 1 秒で 4 分進める。夕方は時刻を進め、朝も同じ向きに進める
+    jd += (dt / 1000) * 240 / 86400;
+    dirty = true;
+  }
+  const sun = sunHorizontal(jd);
+  const eqToHor = eqToHorizontal(localSidereal(jd, SITE.lon), SITE.lat);
+  const horToGal = mulMM(EQ_TO_GAL, transpose(eqToHor));
+  const cam = camera();
+  gl.disable(gl.BLEND);
+
+  if (timerExt && query === null && dirty) { query = gl.createQuery(); gl.beginQuery(timerExt.TIME_ELAPSED_EXT, query); var timing = true; }
+
+  if (dirty) {
+    if (!dayLevel) {
+      // 基準にする昼の明るさ。太陽の高度 30° のとき
+      const a = 30 * RAD;
+      dayLevel = meter([0, Math.cos(a), Math.sin(a)], horToGal).level;
+    }
+    const m = meter(sun.vec, horToGal);
+    zenith = m.zenith;
+    // 露出。空の明るさが、昼の明るさとの比の 0.235 乗に比例して表示されるようにする
+    exposure = KEY * (m.level / dayLevel) ** ADAPT / m.level * 2 ** Number(ui.ev.value);
+    renderSky(skyTarget, cam, sun.vec, horToGal, null, null);
+    updateHud(sun);
+    dirty = false;
+  }
+
+  // 星は毎コマ描く（またたきがあるので）
+  gl.bindFramebuffer(gl.FRAMEBUFFER, starTarget.fbo);
+  gl.viewport(0, 0, starTarget.w, starTarget.h);
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(progStar.p);
+  atmosphereUniforms(progStar, STAR_BAND, 4);
+  cameraUniforms(progStar, cam);
+  gl.uniformMatrix3fv(progStar.u.uEqToHor, false, colMajor(eqToHor));
+  gl.uniform1f(progStar.u.uCamR, 6360 + SITE.heightKm);
+  gl.uniform1f(progStar.u.uExposure, exposure);
+  gl.uniform1f(progStar.u.uPixelSr, (2 * cam.tan[1] / canvas.height) ** 2);
+  gl.uniform1f(progStar.u.uDpr, canvas.height / canvas.clientHeight);
+  gl.uniform1f(progStar.u.uTime, params.has("still") ? 0 : ((now - startTime) / 1000) % 600);
+  gl.uniform1f(progStar.u.uTwinkle, params.has("still") ? 0 : Number(ui.twinkle.value));
+  gl.bindVertexArray(starVao);
+  gl.drawArrays(gl.POINTS, 0, starCount);
+  gl.disable(gl.BLEND);
+
+  gl.useProgram(progFinal.p);
+  cameraUniforms(progFinal, cam);
+  bindTex(0, skyTarget.tex); gl.uniform1i(progFinal.u.uSky, 0);
+  bindTex(1, starTarget.tex); gl.uniform1i(progFinal.u.uStars, 1);
+  gl.uniform1f(progFinal.u.uLand, ui.land.checked ? 1 : 0);
+  gl.uniform1f(progFinal.u.uPitch, viewPitch);
+  gl.uniform1f(progFinal.u.uNight, ui.night.checked ? 1 : 0);
+  // 太陽の光そのものの照度を 128000 lx として、画面の値（輝度 × 露出）を cd/m^2 に直す
+  gl.uniform1f(progFinal.u.uToCd, 128000 / exposure);
+  drawQuad(null);
+
+  if (timing) { gl.endQuery(timerExt.TIME_ELAPSED_EXT); const q = query; const poll = () => {
+    if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) { setTimeout(poll, 30); return; }
+    if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) gpuMs = gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+    gl.deleteQuery(q); query = null; }; setTimeout(poll, 30); }
+}
+
+function updateHud(sun) {
+  if (!auto || Math.abs(sun.alt) <= 30) ui.sun.value = String(Math.max(-30, Math.min(30, sun.alt)));
+  ui.sunLabel.textContent = `${sun.alt >= 0 ? "+" : "−"}${Math.abs(sun.alt).toFixed(1)}°`;
+  ui.evLabel.textContent = `${Number(ui.ev.value) >= 0 ? "+" : ""}${Number(ui.ev.value).toFixed(1)} EV`;
+  const jst = new Date((jd - 2440587.5) * 86400000 + 9 * 3600000);
+  const pad = (n) => String(n).padStart(2, "0");
+  const when = `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())} ${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}`;
+  // 天頂の明るさを等級/平方秒角に直す。1 平方秒角 = 2.3504e-11 sr、太陽は −26.74 等
+  const mu = -2.5 * Math.log10(zenith * 2.3504e-11) - 26.74;
+  // 限界等級（Crumey 2014、F = 2）。18 等/平方秒角より明るい空は、18〜20 の式を延ばした値
+  const nelm = (mu > 20 ? 0.383 * mu - 1.44 : 0.27 * mu + 0.8) - 2.5 * Math.log10(2);
+  const phase = sun.alt > 0 ? "昼" : sun.alt > -6 ? "市民薄明" : sun.alt > -12 ? "航海薄明" : sun.alt > -18 ? "天文薄明" : "夜";
+  $("hud").innerHTML =
+    `<div><b>${when}</b> <span>日本標準時 ・ ${SITE.name}</span></div>` +
+    `<div><span>太陽</span> 高度 ${sun.alt.toFixed(1)}° 方位 ${sun.az.toFixed(0)}° <span>（${phase}）</span></div>` +
+    `<div><span>見る方位</span> ${viewAz.toFixed(0)}° <span>見上げる角度</span> ${viewPitch.toFixed(0)}°</div>` +
+    `<div><span>天頂の空</span> ${mu.toFixed(1)} 等/平方秒角 <span>見える星</span> ${nelm < -1 ? "なし" : nelm.toFixed(1) + " 等まで"}</div>` +
+    `<div><span>1 コマ</span> ${frameMs.toFixed(1)} ms${gpuMs !== null ? `<span>（空の計算を含む GPU の時間 ${gpuMs.toFixed(1)} ms）</span>` : ""}</div>`;
+}
+setInterval(() => { if (!dirty) updateHud(sunHorizontal(jd)); }, 500);
+
+buildLuts();
+resize(true);
+requestAnimationFrame(frame);
+setTimeout(buildGalaxy, 50);
+window.__sky = { get state() { const s = sunHorizontal(jd); return { jd, alt: s.alt, az: s.az, exposure, zenith, frameMs, gpuMs, viewAz }; } };
+</script>
+</body>
+</html>

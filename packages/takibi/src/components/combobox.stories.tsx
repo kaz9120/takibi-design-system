@@ -67,10 +67,10 @@ const meta = {
 				"タグの外すボタンは「ソロを外す」のように、どの値かを含めて読み上げられる",
 			],
 			motion: [
-				"候補の一覧は、入力欄から 4px 離れた 0.94 倍の大きさから、ばね（spring-soft）で現れる（motion-rise）",
-				"候補の間を移ると、背景の帯がばね（spring-glide）で滑って付いてくる",
+				"候補の一覧は、入力欄から 4px 離れた 0.94 倍の大きさから、はぜる曲線（ease-pop）で現れる（motion-rise）",
+				"候補の間を移ると、背景の帯が揺れる曲線（ease-sway）で滑って付いてくる",
 				"消去ボタンは値があるときだけ、0.5 倍の大きさのぼけた状態から現れる（motion-swap）",
-				"タグは 0.8 倍からばね（spring-snappy）で現れ、外すと 120ms で縮んで消え、残りのタグが詰める",
+				"タグは 0.8 倍からはぜる曲線（ease-pop）で現れ、外すと 120ms で縮んで消え、残りのタグが詰める",
 			],
 			related: ["フォーム/Select", "フォーム/Autocomplete", "フォーム/Tag", "フォーム/InputGroup"],
 		} satisfies ComponentDocs,

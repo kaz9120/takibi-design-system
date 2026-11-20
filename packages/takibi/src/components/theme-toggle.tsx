@@ -1,14 +1,15 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Clock, Monitor, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 import { cn } from "../lib/cn";
-import { swap } from "../lib/motion";
+import { applySky, skyAt, startDaylight } from "../lib/daylight";
+import { amplitude, springs } from "../lib/motion";
 import { setTheme, type Theme } from "../lib/theme";
 import { Button, type ButtonProps } from "./button";
 import { ToggleGroup, ToggleGroupItem } from "./toggle-group";
 
-/** 夜、昼、端末の設定に合わせる、の 3 つ */
-export type ThemePreference = Theme | "system";
+/** 夜、昼、端末の設定に合わせる、時刻に合わせる、の 4 つ */
+export type ThemePreference = Theme | "system" | "time";
 
 const DEFAULT_STORAGE_KEY = "takibi-theme";
 const LIGHT_QUERY = "(prefers-color-scheme: light)";
@@ -16,7 +17,7 @@ const LIGHT_QUERY = "(prefers-color-scheme: light)";
 function readStored(key: string): ThemePreference | null {
 	try {
 		const value = window.localStorage.getItem(key);
-		return value === "dark" || value === "light" || value === "system" ? value : null;
+		return value === "dark" || value === "light" || value === "system" || value === "time" ? value : null;
 	} catch {
 		return null;
 	}
@@ -34,6 +35,12 @@ function systemTheme(): Theme {
 	return window.matchMedia(LIGHT_QUERY).matches ? "light" : "dark";
 }
 
+/** 今の時刻のテーマ。場所と日付は固定（src/lib/daylight.ts） */
+function timeTheme(): Theme {
+	const now = new Date();
+	return skyAt(now.getHours() + now.getMinutes() / 60).theme;
+}
+
 function currentTheme(): Theme {
 	return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
@@ -45,6 +52,11 @@ function currentTheme(): Theme {
 export function restoreTheme(storageKey = DEFAULT_STORAGE_KEY) {
 	const stored = readStored(storageKey);
 	if (!stored) return;
+	if (stored === "time") {
+		const now = new Date();
+		applySky(skyAt(now.getHours() + now.getMinutes() / 60));
+		return;
+	}
 	setTheme(stored === "system" ? systemTheme() : stored);
 }
 
@@ -55,7 +67,8 @@ export function restoreTheme(storageKey = DEFAULT_STORAGE_KEY) {
 export function useThemePreference(storageKey = DEFAULT_STORAGE_KEY) {
 	const [preference, setPreferenceState] = React.useState<ThemePreference>(() => {
 		if (typeof window === "undefined") return "dark";
-		return readStored(storageKey) === "system" ? "system" : currentTheme();
+		const stored = readStored(storageKey);
+		return stored === "system" || stored === "time" ? stored : currentTheme();
 	});
 	const [theme, setThemeState] = React.useState<Theme>(() =>
 		typeof document === "undefined" ? "dark" : currentTheme(),
@@ -70,7 +83,8 @@ export function useThemePreference(storageKey = DEFAULT_STORAGE_KEY) {
 			const next = currentTheme();
 			setThemeState(next);
 			const pref = preferenceRef.current;
-			if (pref === "system" ? next !== systemTheme() : next !== pref) setPreferenceState(next);
+			const expected = pref === "system" ? systemTheme() : pref === "time" ? timeTheme() : pref;
+			if (next !== expected) setPreferenceState(next);
 		};
 		sync();
 		const mo = new MutationObserver(sync);
@@ -87,12 +101,18 @@ export function useThemePreference(storageKey = DEFAULT_STORAGE_KEY) {
 		return () => mq.removeEventListener("change", onChange);
 	}, [preference]);
 
+	// 時刻に合わせている間は、1 分ごとにテーマと面の色を更新する
+	React.useEffect(() => {
+		if (preference !== "time") return;
+		return startDaylight();
+	}, [preference]);
+
 	const setPreference = React.useCallback(
 		(next: ThemePreference) => {
 			setPreferenceState(next);
 			preferenceRef.current = next;
 			writeStored(storageKey, next);
-			setTheme(next === "system" ? systemTheme() : next);
+			if (next !== "time") setTheme(next === "system" ? systemTheme() : next);
 		},
 		[storageKey],
 	);
@@ -106,7 +126,7 @@ export type ThemeToggleProps = Omit<ButtonProps, "onClick" | "children" | "statu
 };
 
 /**
- * 夜と昼を切り替えるボタン。押すと月と太陽が回りながら入れ替わり、画面全体が 1 回のクロスフェードで切り替わる。
+ * 夜と昼を切り替えるボタン。押すと、出ていたほうが右下へ沈み、次のほうが左下から昇る（ボタンの下の点を中心に 75 度回る）。画面全体は 720ms で切り替わる。昼へは新しい画面が下の端から上へ、夜へは上の端から下へ広がる。
  * 端末の設定に合わせる選択肢も見せたいときは ThemeToggleGroup を使う。
  */
 export function ThemeToggle({
@@ -122,10 +142,11 @@ export function ThemeToggle({
 	const motionProps = reduce
 		? { initial: false as const, transition: { duration: 0 } }
 		: {
-				initial: { ...swap.initial, rotate: -90 },
-				animate: { ...swap.animate, rotate: 0 },
-				exit: { ...swap.exit, rotate: 90 },
-				transition: swap.transition,
+				// 太陽と月は、ボタンの下にある点を中心に回る。左下から昇り、右下へ沈む
+				initial: { opacity: 0, rotate: -amplitude.orbitAngle },
+				animate: { opacity: 1, rotate: 0 },
+				exit: { opacity: 0, rotate: amplitude.orbitAngle },
+				transition: springs.sway,
 			};
 	return (
 		<Button
@@ -139,7 +160,12 @@ export function ThemeToggle({
 			{...props}
 		>
 			<AnimatePresence mode="popLayout" initial={false}>
-				<motion.span key={theme} className="inline-flex" {...motionProps}>
+				<motion.span
+					key={theme}
+					className="inline-flex"
+					style={{ transformOrigin: amplitude.orbitOrigin }}
+					{...motionProps}
+				>
 					{theme === "dark" ? <Moon /> : <Sun />}
 				</motion.span>
 			</AnimatePresence>
@@ -160,11 +186,13 @@ const options: { value: ThemePreference; label: string; icon: React.ReactNode }[
 	{ value: "dark", label: "夜", icon: <Moon /> },
 	{ value: "light", label: "昼", icon: <Sun /> },
 	{ value: "system", label: "端末に合わせる", icon: <Monitor /> },
+	{ value: "time", label: "時刻に合わせる", icon: <Clock /> },
 ];
 
 /**
- * 夜、昼、端末に合わせる、から選ぶ。選んだ面が溝の中を滑って移る。
+ * 夜、昼、端末に合わせる、時刻に合わせる、から選ぶ。選んだ面が溝の中を滑って移る。
  * 端末に合わせる間は、OS の設定が変わると画面も追って変わる。
+ * 時刻に合わせる間は、5 時 45 分に昼、18 時 15 分に夜へ切り替わり、面の色が時刻で少しずつ変わる。
  */
 export function ThemeToggleGroup({ storageKey, iconOnly, size = "sm", className }: ThemeToggleGroupProps) {
 	const { preference, setPreference } = useThemePreference(storageKey);

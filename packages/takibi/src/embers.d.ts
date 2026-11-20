@@ -3,13 +3,11 @@
 import type * as React from "react";
 
 type EmbersAttributes = React.HTMLAttributes<HTMLElement> & {
-	/** 粒の数。既定 45 */
+	/** 火の粉の多さ。既定 45。45 のとき、平均 0.4 秒に 1 回、1〜4 個が飛ぶ */
 	density?: number | string;
-	/** 横に流れる強さ。既定 0 */
+	/** 横方向の風。-1〜1、既定 0。1 で毎秒 0.6m */
 	wind?: number | string;
-	/** 色相をずらす角度。既定 0 */
-	hue?: number | string;
-	/** 背景のグロー。"off" で消す */
+	/** 下の端の淡い光。"off" で消す */
 	glow?: "on" | "off";
 };
 

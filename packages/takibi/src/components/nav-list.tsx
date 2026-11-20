@@ -94,7 +94,7 @@ export function NavListItem({
 			...props,
 			className: cn(
 				"group/nav relative isolate flex h-9 items-center gap-2.5 rounded-md px-3 text-sm text-fg-muted outline-none select-none",
-				// 押すと少し沈み、離すとばねで戻る。行は大きな面なので、沈み方は浅くする
+				// 押すと少し沈み、離すと載る曲線で戻る。行は大きな面なので、沈み方は浅くする
 				"motion-press-surface",
 				"hover:bg-surface-hover hover:text-fg",
 				"data-active:font-medium data-active:text-fg-strong data-active:hover:bg-transparent",

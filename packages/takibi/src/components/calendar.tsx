@@ -163,7 +163,7 @@ function CaptionLabel({ children, className, ...props }: React.HTMLAttributes<HT
 
 const captionVariants: Variants = {
 	enter: (d: number) => ({ opacity: 0, x: d * 12, filter: "blur(2px)" }),
-	center: { opacity: 1, x: 0, filter: "blur(0px)", transition: springs.soft },
+	center: { opacity: 1, x: 0, filter: "blur(0px)", transition: springs.ignite },
 	exit: (d: number) => ({
 		opacity: 0,
 		x: d * -12,
@@ -181,7 +181,7 @@ function Weeks(props: WeeksProps) {
 			key={monthKey}
 			initial={still ? false : { opacity: 0, x: direction * 16 }}
 			animate={{ opacity: 1, x: 0 }}
-			transition={{ x: springs.soft, opacity: { duration: 0.2, ease: [0.2, 0.8, 0.2, 1] } }}
+			transition={{ x: springs.ignite, opacity: { duration: 0.2, ease: [0.2, 0.8, 0.2, 1] } }}
 			{...(props as React.ComponentProps<typeof motion.tbody>)}
 		/>
 	);
@@ -251,9 +251,9 @@ function DayButton({ day, modifiers, className, children, ...props }: DayButtonP
 					layoutId={reduce ? undefined : layoutId}
 					initial={layoutId || reduce ? false : { opacity: 0, scale: 0.6 }}
 					animate={{ opacity: 1, scale: 1 }}
-					transition={layoutId ? springs.glide : springs.snappy}
+					transition={layoutId ? springs.sway : springs.pop}
 					className={cn(
-						"absolute inset-0 -z-10 rounded-md bg-brand shadow-[0_2px_10px_rgb(244_125_58/0.25)]",
+						"absolute inset-0 -z-10 rounded-md bg-brand shadow-[0_2px_10px_color-mix(in_oklab,var(--color-heat-ember)_25%,transparent)]",
 						day.outside && "opacity-60",
 					)}
 				/>

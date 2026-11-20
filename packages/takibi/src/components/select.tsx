@@ -49,7 +49,7 @@ export function SelectTrigger({ className, size = "md", children, ...props }: Se
 			{children}
 			<BaseSelect.Icon
 				data-slot="select-icon"
-				className="flex text-fg-muted transition-[rotate] duration-(--duration-spring-press) ease-spring-press [[data-popup-open]>&]:rotate-180"
+				className="flex text-fg-muted transition-[rotate] duration-(--duration-sway) ease-sway [[data-popup-open]>&]:rotate-180"
 			>
 				<ChevronDown className="size-4" />
 			</BaseSelect.Icon>

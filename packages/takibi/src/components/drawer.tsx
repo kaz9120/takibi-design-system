@@ -43,7 +43,7 @@ export function DrawerBackdrop({ className, ...props }: React.ComponentProps<typ
 		<BaseDrawer.Backdrop
 			data-slot="drawer-backdrop"
 			className={cn(
-				"fixed inset-0 z-50 min-h-dvh bg-[rgb(10_9_7)] backdrop-blur-[2px]",
+				"fixed inset-0 z-50 min-h-dvh bg-backdrop-solid backdrop-blur-[2px]",
 				"opacity-[calc(0.6*(1-var(--drawer-swipe-progress,0)))]",
 				"transition-opacity duration-(--duration-slow) ease-standard",
 				"data-starting-style:opacity-0 data-ending-style:opacity-0",
@@ -57,7 +57,7 @@ export function DrawerBackdrop({ className, ...props }: React.ComponentProps<typ
 }
 
 /*
- * 面の動き。開くときは soft のばねで端から滑り込み、少し行き過ぎて止まる。
+ * 面の動き。開くときは着火の曲線で端から滑り込み、8% 行き過ぎて止まる。
  * 行き過ぎた分で端に隙間が見えないよう、::after で面の外側に同じ色の帯（--bleed）を足す。
  * 閉じるときは、はじいた勢い（--drawer-swipe-strength）で速さを変え、速い減速で引っ込む。
  * 指で引いている間（data-swiping）は transition を切り、指にそのまま付いてくる。
@@ -65,7 +65,7 @@ export function DrawerBackdrop({ className, ...props }: React.ComponentProps<typ
 const popupBase = [
 	"group/drawer fixed z-50 flex flex-col bg-surface-overlay text-fg shadow-pop outline-none [--bleed:3rem]",
 	"after:pointer-events-none after:absolute after:bg-inherit after:content-['']",
-	"transition-[transform,box-shadow] duration-(--duration-spring-soft) ease-spring-soft",
+	"transition-[transform,box-shadow] duration-(--duration-ignite) ease-ignite",
 	"data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*320ms)] data-ending-style:ease-out-expo",
 	"data-swiping:duration-0 data-swiping:select-none",
 	"data-starting-style:shadow-none data-ending-style:shadow-none",
@@ -142,7 +142,7 @@ function DrawerHandle() {
 			<span
 				className={cn(
 					"h-1 w-10 rounded-full bg-line-strong",
-					"transition-[width,background-color] duration-(--duration-spring-press) ease-spring-press",
+					"transition-[width,background-color] duration-(--duration-land) ease-land",
 					"group-data-swiping/drawer:w-12 group-data-swiping/drawer:bg-fg-muted",
 				)}
 			/>

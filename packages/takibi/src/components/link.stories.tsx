@@ -45,7 +45,7 @@ const meta = {
 			motion: [
 				"hover すると、薄い下線の上に濃い線が左から描かれる（360ms、ease-ember）。離すと右へ抜けて消える（150ms、ease-out-expo）",
 				"フォーカスでは、濃い下線とフォーカスリングが付く",
-				"external の矢印は、hover で右上へ 2px ずつ動く（ease-spring-snappy、500ms）",
+				"external の矢印は、hover で右上へ 2px ずつ動く（ease-pop、500ms）",
 			],
 			related: ["アクション/Button", "ナビゲーション/Breadcrumbs", "ナビゲーション/SkipLink"],
 		} satisfies ComponentDocs,
