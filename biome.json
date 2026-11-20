@@ -12,6 +12,7 @@
 			"!**/.react-router",
 			"!**/.wrangler",
 			"!packages/takibi/src/embers.js",
+			"!packages/takibi/src/fire/engine.js",
 			"!.yomiyasu",
 			"!**/*.md"
 		]

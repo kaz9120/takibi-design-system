@@ -2,8 +2,8 @@
 async page => {
   const d='__WORK__/';
   await page.setViewportSize({width:800,height:600});
-  await page.goto('http://127.0.0.1:__PORT__/fire3d/index.html?bake=1');
-  await page.waitForTimeout(1500);
+  await page.goto('http://127.0.0.1:__PORT__/labs/fire3d/index.html?bake=1');
+  await page.waitForFunction(()=>window.__lab || document.getElementById('error').textContent, null, {timeout:60000});
   const err = await page.evaluate(()=>document.getElementById('error').textContent);
   if (err) return 'ERR '+err.slice(0,600);
   // 10 秒ぶん進めて、炎を育てる
