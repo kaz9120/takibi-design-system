@@ -20,11 +20,12 @@ bun のワークスペース。依存はルートで `bun install` する。
 - `src/tokens.css`: 基本の色と、役割のトークン（Tailwind v4 の `@theme`）。ダークが既定で、`[data-theme="light"]` で昼に切り替える。面、文字、枠線の色は空から取り、時刻（`--sky-phase`）と天気（`--sky-overcast`、`data-weather="cloudy"`）で色相と彩度が動く。明るさは動かさない。Tailwind を使わない場所向けの `dist/tokens.css`（素の CSS 変数）と `dist/tokens.json` は、`bun run build:tokens` でここから生成する。`dist/` は手で直さない
 - `src/motion.css`: 動きの語彙（`motion-*` ユーティリティ）
 - `src/lib/daylight.ts`: 時刻に合わせる仕組み（`startDaylight()`、`skyAt()`、`setWeather()`）。場所と日付は浅間山麓の標高 1200m、秋分の日で固定。位置情報も天気も取りに行かない
-- `src/fire.js`、`src/fire/`: 焚き火（`<takibi-fire>`）。焚き火の計算モデル（`labs/fire3d`）から書き出した画像と動画を重ねるカスタム要素。実行時は計算しない
+- `src/fire.js`、`src/fire/`: 焚き火（`<takibi-fire>`）。焚き火の計算モデル（`src/fire/engine.js`）を WebGL2 でその場で動かして描くカスタム要素。薪は時間とともに折れて熾になり、減ると自動でくべられる。`stoke()`、`tend()`、`blow()` と、`stoke`、`break`、`ember`、`low`、`pop` のイベントを持つ。WebGL2 が使えない、追いつかない、動きを減らす設定、のときは、`src/fire/` の画像と動画（同じモデルから `labs/fire3d/bake/bake.sh` で書き出したもの）に替わる
+- `src/fire/engine.js`: 焚き火の計算モデルの本体。`<takibi-fire>` と `labs/fire3d` の両方がこれを読む。シェーダーを 2 か所に持たない。biome の対象から外してある（シェーダーの文字列と、1 行に詰めた数式のため）
 - `src/embers.js`: 火の粉の背景（`<takibi-embers>`）。Canvas で描くカスタム要素
 - `src/stars.js`、`src/stars-data.js`: 星空の背景（`<takibi-stars>`）。実在の星のカタログから、固定の場所と日付の空を Canvas に 1 回だけ描く。動かない。夜のテーマでだけ見え、薄明の間は薄くなる。炎や火の粉の背景と重ねてよい
 - 星のデータは HYG Database v4.4 から `bun scripts/stars.mjs` で書き出す（CC BY-SA 4.0。v3.x は CC BY-SA 2.5 なので使わない）。手で直さない。出典の表記は `stars-data.js` の先頭、`packages/takibi/README.md`、ルートの `README.md`、`content/basics/color.md` にあり、版や絞り方を変えたら 4 か所を直す
-- `labs/`: 焚き火、空、雨の計算モデル。パッケージには入らない。モーションの値と `<takibi-fire>` の素材は、ここで測って書き出す
+- `labs/`: 焚き火、空、雨の計算モデルの作業台。パッケージには入らない。モーションの値と `<takibi-fire>` の動画の素材は、ここで測って書き出す。焚き火の作業台（`labs/fire3d`）は `src/fire/engine.js` を読むので、リポジトリの直下を配信して開く（`python3 -m http.server 8766` のあと `http://127.0.0.1:8766/labs/fire3d/index.html`）
 - `src/base.css`: 素の要素の見た目
 - `src/components/<name>.tsx` と `<name>.stories.tsx`: コンポーネントとストーリー
 - `content/`: 読み物。front matter に `title`、`description`、`order` を書く。サイトの左のメニューと `llms.txt` はこの順に並ぶ。節は次の 3 つで、どこに置くかは層で決める
@@ -49,6 +50,7 @@ bun のワークスペース。依存はルートで `bun install` する。
 - コンポーネントを合成するときは Base UI の `render` プロパティを使う（`asChild` はない）
 - 各要素に `data-slot="<コンポーネント名>"` を付ける
 - コンポーネントの JSDoc に、いつ使うかを1〜2文で書く。文言は日本語
+- カスタム要素（`<takibi-fire>` など）では、属性とメソッドに同じ名前を付けない。React は、要素に同じ名前のプロパティがあると属性ではなくプロパティに値を入れるので、メソッドが文字列で上書きされる（`stoke()` があるので、属性は `feed` にしてある）
 - 文言の例は、ブランドの声に合わせて短く書く。「〜です！」「最高」「革命的」「あなたの〜」は使わない
 
 ## トークンの使い方
@@ -104,7 +106,7 @@ bun のワークスペース。依存はルートで `bun install` する。
 | Motion で消える要素（10px 上がりながら 1.03 倍に広がってぼける） | `src/lib/motion.ts` の `smoke`（`exit` に渡す） |
 
 - 光と火の粉の色は、温度の色を熱い順（core → flame → ember → coal → ash）にたどる。`rgb(244 125 58 / …)` のように色を直に書かない。昼の色が合わなくなる
-- 続く動き（`motion-flicker`、`<takibi-fire>`、`<takibi-embers>`）は、見出しや空の状態など演出の場所だけに置く。炎と火の粉の背景は合わせて 1 画面に 1 つまで。周期をそろえた無限ループは作らず、`--duration-flicker-a / b / c` を重ねる
+- 続く動き（`motion-flicker`、`<takibi-fire>`、`<takibi-embers>`）は、見出しや空の状態など演出の場所だけに置く。炎と火の粉の背景は合わせて 1 画面に 1 つまで。`<takibi-fire>` は GPU で流れを解くので、1 画面に 2 つ置かない。小さく添えるだけの所や一覧の中では `render="video"` か `render="still"` にする。周期をそろえた無限ループは作らず、`--duration-flicker-a / b / c` を重ねる
 - 開く動きは、焚き火から取った 4 つの曲線（`ease-pop / land / ignite / sway` と、同じ名前の `--duration-*`）で、閉じる動きは `ease-out-expo` で 150〜200ms にする
 
   | 名前 | トークン | 進み方 | 使う所 |

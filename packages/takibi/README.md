@@ -12,7 +12,7 @@ TypeScript のソースをそのまま配布しています。Vite のように�
 | `takibi-design-system/styles.css` | Tailwind CSS v4 のアプリ。`@import "tailwindcss";` のあとに読み込む |
 | `takibi-design-system/tokens.css` | Tailwind を使わない場所。素の CSS 変数。夜が既定で、`[data-theme="light"]` で昼になる |
 | `takibi-design-system/tokens.json` | CSS を読まない道具。各トークンの値、昼の値、説明、CSS 変数名 |
-| `takibi-design-system/fire` | 焚き火（`<takibi-fire>`）。画像と動画を重ねるカスタム要素 |
+| `takibi-design-system/fire` | 焚き火（`<takibi-fire>`）。焚き火の計算モデルを WebGL2 で動かして描くカスタム要素。薪をくべる操作とイベントを持つ。WebGL2 が使えないときは動画に替わる |
 | `takibi-design-system/embers` | 火の粉の背景（`<takibi-embers>`）。Canvas で描くカスタム要素 |
 | `takibi-design-system/stars` | 星空の背景（`<takibi-stars>`）。Canvas に 1 回だけ描くカスタム要素 |
 

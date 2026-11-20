@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Flame } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "takibi-design-system/fire";
 import {
 	Button,
@@ -12,6 +12,7 @@ import {
 	Skeleton,
 	Slider,
 } from "takibi-design-system";
+import type { TakibiFireElement, TakibiFireState } from "takibi-design-system/fire";
 import { Page, Section } from "./catalog";
 
 const meta = {
@@ -30,47 +31,299 @@ const heat = [
 	["heat-ash", "灰", "消える直前"],
 ] as const;
 
+/** 見出しを重ねた焚き火の枠 */
+function Hearth({ children, className = "h-[30rem]" }: { children: React.ReactNode; className?: string }) {
+	return (
+		<div
+			className={`relative flex flex-col items-center overflow-hidden rounded-xl border border-line-subtle bg-surface ${className}`}
+		>
+			{children}
+			<div className="pointer-events-none relative flex flex-col items-center gap-2 pt-10">
+				<span className="font-mono text-xs tracking-mark text-fg-subtle uppercase">Takibi</span>
+				<h1 className="text-3xl font-semibold tracking-tight text-fg-strong">静かに燃える、手元の道具</h1>
+			</div>
+		</div>
+	);
+}
+
+function Dial({
+	label,
+	value,
+	onChange,
+	min,
+	max,
+	step,
+	format,
+}: {
+	label: string;
+	value: number;
+	onChange: (v: number) => void;
+	min: number;
+	max: number;
+	step: number;
+	format: (v: number) => string;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="flex items-baseline justify-between text-sm">
+				<span className="text-fg-muted">{label}</span>
+				<span className="font-mono text-fg tabular-nums">{format(value)}</span>
+			</div>
+			<Slider
+				aria-label={label}
+				min={min}
+				max={max}
+				step={step}
+				value={value}
+				onValueChange={(v) => onChange(v as number)}
+			/>
+		</div>
+	);
+}
+
+const eventNames = {
+	ready: "描き方が決まった",
+	stoke: "薪をくべた",
+	break: "薪が折れた",
+	ember: "薪が熾になった",
+	low: "薪がなくなった",
+} as const;
+
 /**
  * 焚き火。`import "takibi-design-system/fire"` で `<takibi-fire>` が使えるようになる。
- * 太い丸太 2 本の間に、割った薪を 2 段でくべたロングファイヤー型の焚き火を、薪の向きから 28 度横、12 度見下ろした位置から映す。
- * 絵と動きは焚き火の計算モデルから書き出したもので、実行時は 4 つの層（下地、炎の光、炎と火の粉の動画）を重ねるだけ。
- * 親に position: relative が要る。1 画面に 1 つまで。スライダーで、炎と、炎が薪と地面を照らす光の濃さが変わる。
+ * 太い丸太 2 本の間に、割った薪を 2 段でくべたロングファイヤー型の焚き火を、焚き火の計算モデルでその場で描く。
+ * 時間が進むと薪は折れて熾になり、折れていない薪が 3 本を切ると新しい薪が 25cm 上から落ちてくる。
+ * 「薪の燃える速さ」を 60 倍にすると、1 本が約 13 秒で折れる。ボタンは `stoke()`、`tend()`、`blow()` を呼ぶ。
+ * 下の記録には、要素が出したイベントが新しい順に 6 件並ぶ。親に position: relative が要る。1 画面に 1 つまで。
  */
 export const Fire: Story = {
 	render: function Render() {
+		const ref = useRef<TakibiFireElement>(null);
 		const [intensity, setIntensity] = useState(0.8);
+		const [speed, setSpeed] = useState(1);
+		const [wind, setWind] = useState(0);
+		const [auto, setAuto] = useState(true);
+		const [log, setLog] = useState<string[]>([]);
+		const [state, setState] = useState<TakibiFireState | null>(null);
+		const [renderer, setRenderer] = useState("still");
+		useEffect(() => {
+			const el = ref.current;
+			if (!el) return;
+			const started = performance.now();
+			const names = Object.keys(eventNames) as (keyof typeof eventNames)[];
+			const handlers = names.map((name) => {
+				const handler = (event: Event) => {
+					const detail = (event as CustomEvent<{ auto?: boolean }>).detail;
+					const note = name === "stoke" ? (detail.auto ? "（自動）" : "（手で）") : "";
+					const at = ((performance.now() - started) / 1000).toFixed(0);
+					setLog((prev) => [`${at} 秒 ${eventNames[name]}${note}`, ...prev].slice(0, 6));
+				};
+				el.addEventListener(name, handler);
+				return [name, handler] as const;
+			});
+			const timer = window.setInterval(() => {
+				setState(el.state);
+				setRenderer(el.renderer);
+			}, 500);
+			return () => {
+				for (const [name, handler] of handlers) el.removeEventListener(name, handler);
+				window.clearInterval(timer);
+			};
+		}, []);
 		return (
 			<Page>
-				<div className="relative flex h-[30rem] flex-col items-center overflow-hidden rounded-xl border border-line-subtle bg-surface">
-					<takibi-fire intensity={intensity} />
-					<div className="pointer-events-none relative flex flex-col items-center gap-2 pt-10">
-						<span className="font-mono text-xs tracking-mark text-fg-subtle uppercase">Takibi</span>
-						<h1 className="text-3xl font-semibold tracking-tight text-fg-strong">静かに燃える、手元の道具</h1>
-					</div>
-				</div>
-				<div className="w-64">
-					<Slider
-						aria-label="火の強さ"
-						min={0}
-						max={1}
-						step={0.05}
-						value={intensity}
-						onValueChange={(v) => setIntensity(v as number)}
+				<Hearth>
+					<takibi-fire
+						ref={ref}
+						intensity={intensity}
+						speed={speed}
+						wind={wind}
+						feed={auto ? "auto" : "manual"}
 					/>
+				</Hearth>
+				<div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+					<div className="flex flex-col gap-4">
+						<Dial
+							label="火の強さ"
+							value={intensity}
+							onChange={setIntensity}
+							min={0}
+							max={1}
+							step={0.05}
+							format={(v) => v.toFixed(2)}
+						/>
+						<Dial
+							label="薪の燃える速さ"
+							value={speed}
+							onChange={setSpeed}
+							min={0}
+							max={60}
+							step={1}
+							format={(v) => (v === 0 ? "止める" : `${v} 倍`)}
+						/>
+						<Dial
+							label="風"
+							value={wind}
+							onChange={setWind}
+							min={-1}
+							max={1}
+							step={0.05}
+							format={(v) => `毎秒 ${(v * 1.5).toFixed(1)}m`}
+						/>
+					</div>
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-wrap gap-2">
+							<Button variant="secondary" size="sm" onClick={() => ref.current?.stoke()}>
+								薪をくべる
+							</Button>
+							<Button variant="secondary" size="sm" onClick={() => ref.current?.tend()}>
+								熾を寄せる
+							</Button>
+							<Button variant="secondary" size="sm" onClick={() => ref.current?.blow(0.8)}>
+								息を吹く
+							</Button>
+						</div>
+						<Button variant="ghost" size="sm" aria-pressed={auto} onClick={() => setAuto((v) => !v)}>
+							{auto ? "自動でくべる: する" : "自動でくべる: しない"}
+						</Button>
+						<p className="text-sm text-fg-muted tabular-nums">
+							{state
+								? `薪 ${state.logs} 本、折れた薪 ${state.pieces} 本、熾の量 ${state.embers.toFixed(2)}、明るさ ${state.brightness.toFixed(2)}`
+								: "準備中"}
+							<br />
+							描き方: {renderer}
+						</p>
+					</div>
+					<ol className="flex flex-col gap-1 text-sm text-fg-muted tabular-nums" aria-label="イベントの記録">
+						{log.length === 0 ? <li>イベントはまだない</li> : log.map((line) => <li key={line}>{line}</li>)}
+					</ol>
 				</div>
 			</Page>
 		);
 	},
 };
 
-/** 使う場所の例。記録が 1 件もない画面で、高さ 160px の焚き火を説明の上に置く */
+/**
+ * 触れる焚き火。`interactive` を付けると、焚き火をクリックするたびに薪が 1 本落ちてきて、ドラッグすると視点が回る
+ * （1px で横へ 0.35 度、縦へ 0.25 度）。回している間は薪と地面を 4 割の解像度で描き、止めると 0.2 秒で元の細かさに戻る。
+ * `feed="manual"` なので、くべなければ約 22 分で熾だけになる。キーボードでは操作できないので、同じ操作のボタンを別に置く。
+ */
+export const Play: Story = {
+	name: "触って遊ぶ",
+	render: function Render() {
+		const ref = useRef<TakibiFireElement>(null);
+		const [count, setCount] = useState(0);
+		return (
+			<Page>
+				<Hearth>
+					<takibi-fire ref={ref} interactive feed="manual" onstoke={() => setCount((n) => n + 1)} />
+				</Hearth>
+				<div className="flex items-center gap-3">
+					<Button variant="secondary" size="sm" onClick={() => ref.current?.stoke()}>
+						薪をくべる
+					</Button>
+					<span className="text-sm text-fg-muted tabular-nums">くべた薪 {count} 本</span>
+				</div>
+			</Page>
+		);
+	},
+};
+
+/**
+ * 視点の候補。`azimuth`（薪の向きから横へ回った角度）、`elevation`（見下ろす角度）、`distance`（中心からの距離）で決める。
+ * 値を変えると、視点は 0.15 秒ほどで新しい位置へ動く。
+ */
+export const Angles: Story = {
+	name: "視点",
+	render: function Render() {
+		const angles = [
+			{ name: "斜め前・低め（既定）", azimuth: 28, elevation: 12, distance: 1.5 },
+			{ name: "薪の端から", azimuth: 8, elevation: 16, distance: 1.2 },
+			{ name: "真横", azimuth: 90, elevation: 10, distance: 1.3 },
+			{ name: "見下ろす", azimuth: 40, elevation: 38, distance: 1.25 },
+		];
+		const [index, setIndex] = useState(0);
+		const angle = angles[index] ?? angles[0];
+		return (
+			<Page>
+				<Hearth>
+					<takibi-fire azimuth={angle?.azimuth} elevation={angle?.elevation} distance={angle?.distance} />
+				</Hearth>
+				<div className="flex flex-wrap gap-2">
+					{angles.map((a, i) => (
+						<Button
+							key={a.name}
+							variant={i === index ? "primary" : "secondary"}
+							size="sm"
+							aria-pressed={i === index}
+							onClick={() => setIndex(i)}
+						>
+							{a.name}
+						</Button>
+					))}
+				</div>
+			</Page>
+		);
+	},
+};
+
+/**
+ * 炎の明るさを周りに写す。`glow-target="parent"` を付けると、炎の明るさ（平均が 1）が 0.1 秒おきに親要素の
+ * `--takibi-fire-glow` に入る。ここでは、右のカードの上に重ねたブランドカラーの光の濃さを、この値の 12% にしている。
+ */
+export const Glow: Story = {
+	name: "周りを照らす",
+	render: () => (
+		<Page>
+			<div className="relative grid h-[26rem] grid-cols-[1fr_16rem] items-end gap-6 overflow-hidden rounded-xl border border-line-subtle bg-surface p-6">
+				<takibi-fire glow-target="parent" />
+				<div />
+				<div className="relative overflow-hidden rounded-lg border border-line-subtle bg-surface-raised p-5">
+					<span
+						aria-hidden
+						className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,var(--color-heat-ember),transparent_70%)] opacity-[calc(var(--takibi-fire-glow,1)*0.12)] transition-opacity duration-(--duration-fast) ease-linear"
+					/>
+					<h2 className="relative text-base font-semibold text-fg-strong">今夜の記録</h2>
+					<p className="relative mt-1 text-sm text-fg-muted">薪 4 本、2 時間 10 分。</p>
+				</div>
+			</div>
+		</Page>
+	),
+};
+
+/**
+ * 計算モデルを使わない描き方。`render="video"` は書き出しておいた 6 秒の動画、`render="still"` は止まった 1 枚を出す。
+ * WebGL2 が使えないときと、描くのが追いつかないときは、自動で動画に替わる。動きを減らす設定では、止まった 1 枚になる。
+ */
+export const Fallbacks: Story = {
+	name: "動画と止まった絵",
+	render: () => (
+		<Page>
+			<div className="grid grid-cols-2 gap-4">
+				{(["video", "still"] as const).map((mode) => (
+					<figure key={mode} className="flex flex-col gap-2">
+						<div className="relative h-72 overflow-hidden rounded-xl border border-line-subtle bg-surface">
+							<takibi-fire render={mode} />
+						</div>
+						<figcaption className="font-mono text-sm text-fg-muted">render="{mode}"</figcaption>
+					</figure>
+				))}
+			</div>
+		</Page>
+	),
+};
+
+/**
+ * 使う場所の例。記録が 1 件もない画面で、高さ 160px の焚き火を説明の上に置く。
+ * 小さく添えるだけの所なので、計算モデルは動かさず、書き出しておいた動画を出す（`render="video"`）。
+ */
 export const InEmptyState: Story = {
 	name: "空の状態に置く",
 	render: () => (
 		<Page>
 			<div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-xl border border-line-subtle bg-surface-raised px-8 py-10 text-center">
 				<div className="relative h-40 w-full">
-					<takibi-fire />
+					<takibi-fire render="video" />
 				</div>
 				<div className="flex flex-col gap-1">
 					<h2 className="text-lg font-semibold text-fg-strong">まだ記録がない</h2>
