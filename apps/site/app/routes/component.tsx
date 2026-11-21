@@ -77,13 +77,13 @@ export default function ComponentPage({ loaderData }: Route.ComponentProps) {
 	const tests = c.stories.filter((s) => s.test);
 	const hasUsage =
 		d.use?.length || avoid.length || d.dos?.length || d.donts?.length || bySection("例").length;
-	const hasSpec = d.keyboard?.length || d.a11y?.length || d.motion?.length || tests.length;
+	const hasSpec = d.api?.length || d.keyboard?.length || d.a11y?.length || d.motion?.length || tests.length;
 
 	return (
 		<article>
 			<PageHeader eyebrow={c.category} title={c.name} description={c.summary} />
 			<pre className="max-w-(--container-prose) overflow-x-auto rounded-lg border border-line-subtle bg-surface-sunken px-4 py-3 font-mono text-sm text-fg">
-				{`import { ${c.name} } from "takibi-design-system";`}
+				{d.import ?? `import { ${c.name} } from "takibi-design-system";`}
 			</pre>
 			{c.description && c.description !== c.summary && (
 				<p className="mt-6 max-w-(--container-prose) leading-relaxed whitespace-pre-line text-fg">
@@ -173,6 +173,20 @@ export default function ComponentPage({ loaderData }: Route.ComponentProps) {
 
 			{hasSpec ? (
 				<Section id="spec" title="仕様">
+					{d.api?.map((t) => (
+						<Block key={t.title} title={t.title}>
+							<table className="w-full max-w-(--container-prose) border-collapse text-sm">
+								<tbody>
+									{t.rows.map(([name, what]) => (
+										<tr key={name} className="border-t border-line-subtle">
+											<td className="w-48 py-2 pr-4 align-top font-mono text-fg-strong">{name}</td>
+											<td className="py-2 leading-relaxed text-fg">{what}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</Block>
+					))}
 					{d.keyboard?.length ? (
 						<Block title="キーボード操作">
 							<table className="w-full max-w-(--container-prose) border-collapse text-sm">

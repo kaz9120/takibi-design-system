@@ -142,7 +142,7 @@ export async function locationToPath(location: string): Promise<string | undefin
 export async function componentMarkdown(c: ComponentInfo): Promise<string> {
 	const d = c.docs;
 	const out: string[] = [`# ${c.name}`, "", `> ${c.summary ?? ""}`, "", `分類: ${c.category}`, ""];
-	out.push("```tsx", `import { ${c.name} } from "takibi-design-system";`, "```", "");
+	out.push("```tsx", d.import ?? `import { ${c.name} } from "takibi-design-system";`, "```", "");
 	if (c.description && c.description !== c.summary) out.push(c.description, "");
 	const list = (title: string, items?: string[]) => {
 		if (!items?.length) return;
@@ -169,6 +169,11 @@ export async function componentMarkdown(c: ComponentInfo): Promise<string> {
 	if (d.keyboard?.length) {
 		out.push("## キーボード操作", "", "| キー | 起きること |", "|---|---|");
 		for (const [k, v] of d.keyboard) out.push(`| ${k} | ${v} |`);
+		out.push("");
+	}
+	for (const t of d.api ?? []) {
+		out.push(`## ${t.title}`, "", "| 名前 | 説明 |", "|---|---|");
+		for (const [k, v] of t.rows) out.push(`| \`${k}\` | ${v} |`);
 		out.push("");
 	}
 	list("アクセシビリティ", d.a11y);

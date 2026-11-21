@@ -17,4 +17,5 @@ export const CATEGORIES = [
 	"フィードバック",
 	"データ表示",
 	"ナビゲーション",
+	"ブランドの演出",
 ] as const;
