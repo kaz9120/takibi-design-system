@@ -45,7 +45,10 @@ function starColor(bv) {
 	return [Math.round(r), Math.round(Math.min(255, g)), Math.round(Math.max(120, b))];
 }
 
-class TakibiStars extends HTMLElement {
+// サーバー（SSR や prerender）で読み込まれても落ちないよう、HTMLElement がない所では空のクラスを継ぎ、登録もしない
+const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+
+class TakibiStars extends Base {
 	/** 星のデータの出典とライセンスの表示 */
 	static credit = CREDIT;
 
@@ -178,4 +181,5 @@ class TakibiStars extends HTMLElement {
 	}
 }
 
-if (!customElements.get("takibi-stars")) customElements.define("takibi-stars", TakibiStars);
+if (typeof customElements !== "undefined" && !customElements.get("takibi-stars"))
+	customElements.define("takibi-stars", TakibiStars);

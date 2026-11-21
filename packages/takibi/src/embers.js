@@ -34,7 +34,10 @@ function planck(T) {
 /** 気流の細かい乱れ。場所と時刻で決まる -1〜1 の値 */
 const gust = (x, y, t, seed) => Math.sin(x * 5.1 + t * 1.7 + seed) * 0.6 + Math.sin(y * 7.3 - t * 2.9 + seed * 2.1) * 0.4;
 
-class TakibiEmbers extends HTMLElement {
+// サーバー（SSR や prerender）で読み込まれても落ちないよう、HTMLElement がない所では空のクラスを継ぎ、登録もしない
+const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+
+class TakibiEmbers extends Base {
 	constructor() {
 		super();
 		this._raf = 0;
@@ -199,4 +202,4 @@ class TakibiEmbers extends HTMLElement {
 	}
 }
 
-if (!customElements.get("takibi-embers")) customElements.define("takibi-embers", TakibiEmbers);
+if (typeof customElements !== "undefined" && !customElements.get("takibi-embers")) customElements.define("takibi-embers", TakibiEmbers);

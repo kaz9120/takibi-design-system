@@ -103,7 +103,10 @@ const START_BURN = [0.74, 0.66, 0.5, 0.3];
 const asset = (name) => new URL(`./fire/${name}`, import.meta.url).href;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-class TakibiFire extends HTMLElement {
+// サーバー（SSR や prerender）で読み込まれても落ちないよう、HTMLElement がない所では空のクラスを継ぎ、登録もしない
+const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+
+class TakibiFire extends Base {
 	static get observedAttributes() {
 		return [
 			"intensity",
@@ -615,4 +618,5 @@ class TakibiFire extends HTMLElement {
 	}
 }
 
-if (!customElements.get("takibi-fire")) customElements.define("takibi-fire", TakibiFire);
+if (typeof customElements !== "undefined" && !customElements.get("takibi-fire"))
+	customElements.define("takibi-fire", TakibiFire);
