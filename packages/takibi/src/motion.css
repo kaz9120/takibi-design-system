@@ -771,7 +771,7 @@
  *   最初の 25% は日の出の光の色（暖かい色）で、そこから日中の色へ戻る
  * - 夜へ: 前の画面（昼）が夕日の色に寄って暗くなり、新しい画面（夜）が上の端から下へ広がる。新しい画面は、
  *   最初の 30% は薄明の青で明るく、そこから夜の色へ沈む
- * 境目は画面の高さと同じ幅のグラデーションでぼかす。
+ * 境目は画面の高さの 40% の幅のグラデーションでぼかす。境目は 720ms の間ずっと動き、途中で止まって見える区間を作らない。
  */
 :root[data-theme-to]::view-transition-old(root) {
 	animation: 720ms cubic-bezier(0.3, 0, 0.2, 1) both;
@@ -786,21 +786,25 @@
 :root[data-theme-to]::view-transition-new(root) {
 	mix-blend-mode: normal;
 	mask-repeat: no-repeat;
-	mask-size: 100% 250%;
-	animation: 720ms cubic-bezier(0.3, 0, 0.2, 1) both;
+	/* マスクは画面の高さの 1.4 倍。画面と同じ高さの不透明な部分に、高さの 40% のぼかしが続く */
+	mask-size: 100% 140%;
+	animation: 720ms both;
+	/* 1 つ目は境目の動き、2 つ目は色の移り変わり */
+	animation-timing-function: cubic-bezier(0.3, 0.1, 0.3, 1), cubic-bezier(0.3, 0, 0.2, 1);
 }
 :root[data-theme-to="light"]::view-transition-new(root) {
-	mask-image: linear-gradient(to top, #000 0%, #000 60%, transparent 100%);
+	mask-image: linear-gradient(to top, #000 0%, #000 71.43%, transparent 100%);
 	animation-name: dawn, sunrise;
 }
 :root[data-theme-to="dark"]::view-transition-new(root) {
-	mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+	mask-image: linear-gradient(to bottom, #000 0%, #000 71.43%, transparent 100%);
 	animation-name: dusk, nightfall;
 }
 
+/* 境目は、ぼかしの先が画面の端に入る所から、不透明な部分が画面をちょうど覆う所まで動く。動きの途中に、何も変わらない区間を作らない */
 @keyframes dawn {
 	from {
-		mask-position: 0 -67%;
+		mask-position: 0 -250%;
 	}
 	to {
 		mask-position: 0 100%;
@@ -809,10 +813,33 @@
 
 @keyframes dusk {
 	from {
-		mask-position: 0 167%;
+		mask-position: 0 350%;
 	}
 	to {
 		mask-position: 0 0%;
+	}
+}
+
+/*
+ * 切り替えを起こしたボタン（setTheme の origin）は、画面とは別に写し取って、切り替えの上に出す。
+ * 前の画面は止まった絵なので、こうしないと、境目が届くまでボタンの中の動き（ThemeToggle のアイコンが回る動き）が見えない。
+ * 写し取るのは新しいテーマの色のボタンで、下にある画面は境目が届くまで前のテーマのまま。そのままだと文字と背景が同じ明るさになるので、
+ * 境目が届くまでは明るさを反転して前のテーマの色に近づけ、境目が通る間に戻す。届く時刻と通る時間は、setTheme がボタンの位置から決める。
+ */
+::view-transition-old(theme-origin) {
+	display: none;
+}
+::view-transition-new(theme-origin) {
+	mix-blend-mode: normal;
+	animation: theme-origin var(--theme-origin-duration, 120ms) linear var(--theme-origin-delay, 0ms) both;
+}
+
+@keyframes theme-origin {
+	from {
+		filter: invert(1) hue-rotate(180deg);
+	}
+	to {
+		filter: none;
 	}
 }
 

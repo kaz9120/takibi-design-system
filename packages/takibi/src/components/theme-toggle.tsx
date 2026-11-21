@@ -108,11 +108,11 @@ export function useThemePreference(storageKey = DEFAULT_STORAGE_KEY) {
 	}, [preference]);
 
 	const setPreference = React.useCallback(
-		(next: ThemePreference) => {
+		(next: ThemePreference, origin?: HTMLElement | null) => {
 			setPreferenceState(next);
 			preferenceRef.current = next;
 			writeStored(storageKey, next);
-			if (next !== "time") setTheme(next === "system" ? systemTheme() : next);
+			if (next !== "time") setTheme(next === "system" ? systemTheme() : next, undefined, origin);
 		},
 		[storageKey],
 	);
@@ -127,6 +127,7 @@ export type ThemeToggleProps = Omit<ButtonProps, "onClick" | "children" | "statu
 
 /**
  * 夜と昼を切り替えるボタン。押すと、出ていたほうが右下へ沈み、次のほうが左下から昇る（ボタンの下の点を中心に 75 度回る）。画面全体は 720ms で切り替わる。昼へは新しい画面が下の端から上へ、夜へは上の端から下へ広がる。
+ * ボタンは画面の切り替えの上に出るので、広がる境目が届く前からアイコンが動き、境目が通る間に色が新しいテーマへ移る。
  * 端末の設定に合わせる選択肢も見せたいときは ThemeToggleGroup を使う。
  */
 export function ThemeToggle({
@@ -156,7 +157,7 @@ export function ThemeToggle({
 			size={size}
 			aria-label={next === "light" ? "昼にする" : "夜にする"}
 			className={cn("overflow-hidden", className)}
-			onClick={() => setPreference(next)}
+			onClick={(event) => setPreference(next, event.currentTarget)}
 			{...props}
 		>
 			<AnimatePresence mode="popLayout" initial={false}>
